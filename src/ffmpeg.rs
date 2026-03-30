@@ -1,10 +1,47 @@
-use std::process::Stdio;
+use std::{fmt, process::Stdio, sync::LazyLock, time::Duration};
 
 use color_eyre::eyre::{self, bail};
-use tokio::process::Command;
-use tracing::info;
+use indicatif::{FormattedDuration, ProgressBar, ProgressState, ProgressStyle};
+use regex::Regex;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::Command,
+};
+use tracing::{debug, info};
 
 use crate::types::ClipInfo;
+
+fn ffmpeg_progress_bar(total_duration_ms: u64) -> ProgressBar {
+    let style = ProgressStyle::with_template(
+    "{msg} {elapsed} {wide_bar:.cyan/blue} Transcoded {pos_duration} / {len_duration}, ETA: {eta}",
+)
+.unwrap()
+.with_key(
+    "pos_duration",
+    |state: &ProgressState, w: &mut dyn fmt::Write| {
+        write!(
+            w,
+            "{}",
+            FormattedDuration(Duration::from_millis(state.pos()))
+        )
+        .unwrap()
+    },
+)
+.with_key(
+    "len_duration",
+    |state: &ProgressState, w: &mut dyn fmt::Write| {
+        write!(
+            w,
+            "{}",
+            FormattedDuration(Duration::from_millis(state.len().unwrap()))
+        )
+        .unwrap()
+    },
+);
+    ProgressBar::new(total_duration_ms)
+        .with_style(style)
+        .with_message("Creating compilation")
+}
 
 pub async fn create_scrolling_video(
     clips: &[ClipInfo],
@@ -16,6 +53,9 @@ pub async fn create_scrolling_video(
     crf: u32,
     show_performer_names: bool,
 ) -> eyre::Result<()> {
+    static OUT_TIME_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"out_time_us=(\d+)").unwrap());
+
     let total_width: u32 = clips.iter().map(|c| c.scaled_width).sum();
     if total_width <= viewport_width {
         bail!(
@@ -38,6 +78,8 @@ pub async fn create_scrolling_video(
     info!("Filter graph:\n{filter_graph}");
 
     let mut cmd = Command::new("ffmpeg");
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
 
     for clip in clips {
         if clip.is_image {
@@ -56,17 +98,32 @@ pub async fn create_scrolling_video(
     cmd.arg("-crf").arg(crf.to_string());
     cmd.arg("-an");
     cmd.arg("-y");
+    cmd.arg("-progress");
+    cmd.arg("-");
+    cmd.arg("-nostats");
     cmd.arg(output);
 
-    cmd.stdout(Stdio::inherit());
-    cmd.stderr(Stdio::inherit());
-
     info!("Running ffmpeg...");
-    let status = cmd.status().await?;
+    let mut process = cmd.spawn()?;
 
-    if !status.success() {
-        bail!("ffmpeg exited with status {status}");
+    let stdout = process.stdout.take().unwrap();
+    let reader = BufReader::new(stdout);
+
+    let mut last_position = 0;
+    let progress = ffmpeg_progress_bar((duration_secs * 1000) as u64);
+    let mut lines = reader.lines();
+    while let Some(line) = lines.next_line().await? {
+        debug!("{}", line);
+        if let Some(captures) = OUT_TIME_REGEX.captures(&line) {
+            let duration: u64 = captures.get(1).unwrap().as_str().parse::<u64>()?;
+            let duration = Duration::from_micros(duration);
+            let millis = duration.as_millis() as u64;
+            let delta = millis - last_position;
+            progress.inc(delta);
+            last_position = millis;
+        }
     }
+    progress.finish_and_clear();
 
     info!("Output written to {output}");
     Ok(())

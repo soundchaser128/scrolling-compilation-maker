@@ -85,12 +85,12 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("scrolling_compilation_maker=info".parse()?),
-        )
-        .init();
+    // tracing_subscriber::fmt()
+    //     .with_env_filter(
+    //         tracing_subscriber::EnvFilter::from_default_env()
+    //             .add_directive("scrolling_compilation_maker=info".parse()?),
+    //     )
+    //     .init();
 
     let args = Args::parse();
     let seed = args.seed.unwrap_or_else(|| rand::random::<f64>());

@@ -38,9 +38,19 @@ pub struct PageInfo {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FileType {
+    Video,
+    Image,
+    Text,
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VideoFile {
     pub id: Uuid,
+    pub title: String,
+    pub file_type: FileType,
     pub width: Option<i32>,
     pub height: Option<i32>,
     pub duration: Option<u64>,
@@ -58,7 +68,7 @@ pub struct Person {
 
 impl VideoFile {
     pub fn is_image(&self) -> bool {
-        self.mime_type.starts_with("image/")
+        matches!(self.file_type, FileType::Image)
     }
 
     pub fn content_url(&self, base_url: &str) -> String {

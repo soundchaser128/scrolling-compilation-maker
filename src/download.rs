@@ -8,6 +8,14 @@ use tracing::info;
 
 use crate::types::{VideoFile, extension_for_mime};
 
+fn trim_title(title: &str) -> String {
+    if title.len() > 60 {
+        title[0..60].replace("\n", " ").replace("\t", " ")
+    } else {
+        title.to_owned()
+    }
+}
+
 pub async fn download_clips(
     client: &reqwest::Client,
     clips: &[VideoFile],
@@ -32,20 +40,18 @@ pub async fn download_clips(
     let tasks: Vec<_> = clips
         .iter()
         .zip(paths.iter())
-        .enumerate()
-        .map(|(i, (clip, path))| {
+        .map(|(clip, path)| {
             let url = clip.content_url(content_base_url);
             let path = path.clone();
-            let client = client.clone();
             let pb = multi.add(ProgressBar::new(0));
             pb.set_style(style.clone());
-            pb.set_message(format!("clip {i}"));
-            (client, url, path, pb)
+            pb.set_message(format!("{}", trim_title(&clip.title)));
+            (url, path, pb)
         })
         .collect();
 
     let results: Vec<eyre::Result<PathBuf>> = stream::iter(tasks)
-        .map(|(client, url, path, pb)| async move {
+        .map(|(url, path, pb)| async move {
             let response = client.get(&url).send().await?;
             if !response.status().is_success() {
                 eyre::bail!("Failed to download {url}: {}", response.status());
