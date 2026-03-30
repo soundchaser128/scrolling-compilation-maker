@@ -7,7 +7,7 @@ use clap::Parser;
 use color_eyre::eyre;
 use tracing::info;
 
-use crate::types::ClipInfo;
+use crate::types::{ClipInfo, Orientation};
 
 #[derive(Parser)]
 #[command(name = "scrolling-compilation-maker")]
@@ -40,6 +40,10 @@ struct Args {
     /// Random seed for consistent API ordering (random if not set)
     #[arg(long)]
     seed: Option<f64>,
+
+    /// Filter by orientation (portrait, landscape, square). Omit for any.
+    #[arg(long, value_enum)]
+    orientation: Option<Orientation>,
 
     /// Filter by tag (can be specified multiple times)
     #[arg(long = "tag")]
@@ -102,6 +106,7 @@ async fn main() -> eyre::Result<()> {
         args.clip_count,
         args.api_token.as_deref(),
         seed,
+        args.orientation.as_ref(),
         &args.tags,
         &args.people,
     )

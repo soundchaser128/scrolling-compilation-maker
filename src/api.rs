@@ -2,7 +2,7 @@ use color_eyre::eyre::{self, bail};
 use reqwest::{Client, Url};
 use tracing::{info, warn};
 
-use crate::types::{PageResponse, VideoFile};
+use crate::types::{Orientation, PageResponse, VideoFile};
 
 pub async fn fetch_videos(
     client: &Client,
@@ -11,6 +11,7 @@ pub async fn fetch_videos(
     desired_count: usize,
     api_token: Option<&str>,
     seed: f64,
+    orientation: Option<&Orientation>,
     tags: &[String],
     people: &[String],
 ) -> eyre::Result<Vec<VideoFile>> {
@@ -23,13 +24,15 @@ pub async fn fetch_videos(
         let mut url = Url::parse(api_url).unwrap();
         url.set_path("/api/file");
         let mut query = vec![
-            ("orientation", "Portrait"),
             ("sort", "random"),
             ("fileType", "video"),
             ("size", "50"),
             ("page", &page_str),
             ("seed", &seed),
         ];
+        if let Some(o) = orientation {
+            query.push(("orientation", o.as_api_param()));
+        }
         for person in people {
             query.push(("person", &person));
         }

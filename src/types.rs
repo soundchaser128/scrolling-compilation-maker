@@ -1,7 +1,25 @@
 use std::path::PathBuf;
 
+use clap::ValueEnum;
 use serde::Deserialize;
 use uuid::Uuid;
+
+#[derive(Clone, ValueEnum)]
+pub enum Orientation {
+    Portrait,
+    Landscape,
+    Square,
+}
+
+impl Orientation {
+    pub fn as_api_param(&self) -> &'static str {
+        match self {
+            Orientation::Portrait => "Portrait",
+            Orientation::Landscape => "Landscape",
+            Orientation::Square => "Square",
+        }
+    }
+}
 
 #[derive(Deserialize)]
 pub struct PageResponse<T> {
