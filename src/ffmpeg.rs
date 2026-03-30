@@ -1,6 +1,7 @@
 use std::{fmt, process::Stdio, sync::LazyLock, time::Duration};
 
-use color_eyre::eyre::{self, bail};
+use color_eyre::Result;
+use color_eyre::eyre::bail;
 use indicatif::{FormattedDuration, ProgressBar, ProgressState, ProgressStyle};
 use regex::Regex;
 use tokio::{
@@ -9,35 +10,35 @@ use tokio::{
 };
 use tracing::{debug, info};
 
-use crate::types::ClipInfo;
+use crate::types::{ClipInfo, EncodingArgs};
 
 fn ffmpeg_progress_bar(total_duration_ms: u64) -> ProgressBar {
     let style = ProgressStyle::with_template(
-    "{msg} {elapsed} {wide_bar:.cyan/blue} Transcoded {pos_duration} / {len_duration}, ETA: {eta}",
-)
-.unwrap()
-.with_key(
-    "pos_duration",
-    |state: &ProgressState, w: &mut dyn fmt::Write| {
-        write!(
-            w,
-            "{}",
-            FormattedDuration(Duration::from_millis(state.pos()))
-        )
-        .unwrap()
-    },
-)
-.with_key(
-    "len_duration",
-    |state: &ProgressState, w: &mut dyn fmt::Write| {
-        write!(
-            w,
-            "{}",
-            FormattedDuration(Duration::from_millis(state.len().unwrap()))
-        )
-        .unwrap()
-    },
-);
+        "{msg} {elapsed} {wide_bar:.cyan/blue} Encoded {pos_duration} / {len_duration}, ETA: {eta}",
+    )
+    .unwrap()
+    .with_key(
+        "pos_duration",
+        |state: &ProgressState, w: &mut dyn fmt::Write| {
+            write!(
+                w,
+                "{}",
+                FormattedDuration(Duration::from_millis(state.pos()))
+            )
+            .unwrap()
+        },
+    )
+    .with_key(
+        "len_duration",
+        |state: &ProgressState, w: &mut dyn fmt::Write| {
+            write!(
+                w,
+                "{}",
+                FormattedDuration(Duration::from_millis(state.len().unwrap()))
+            )
+            .unwrap()
+        },
+    );
     ProgressBar::new(total_duration_ms)
         .with_style(style)
         .with_message("Creating compilation")
@@ -49,14 +50,13 @@ pub async fn create_scrolling_video(
     viewport_width: u32,
     viewport_height: u32,
     duration_secs: u32,
-    codec: &str,
-    crf: u32,
+    encoding: &EncodingArgs,
     show_performer_names: bool,
-) -> eyre::Result<()> {
+) -> Result<()> {
     static OUT_TIME_REGEX: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"out_time_us=(\d+)").unwrap());
 
-    let total_width: u32 = clips.iter().map(|c| c.scaled_width).sum();
+    let total_width: u32 = clips.iter().map(|c| c.output_width).sum();
     if total_width <= viewport_width {
         bail!(
             "Total canvas width ({total_width}) must be greater than viewport width ({viewport_width}). \
@@ -94,8 +94,12 @@ pub async fn create_scrolling_video(
     cmd.arg("-filter_complex").arg(&filter_graph);
     cmd.arg("-map").arg("[out]");
     cmd.arg("-t").arg(duration_secs.to_string());
-    cmd.arg("-c:v").arg(codec);
-    cmd.arg("-crf").arg(crf.to_string());
+    cmd.arg("-c:v").arg(&encoding.codec);
+    for arg in &encoding.preset_args {
+        cmd.arg(arg);
+    }
+    cmd.arg(encoding.quality_flag)
+        .arg(encoding.quality_value.to_string());
     cmd.arg("-an");
     cmd.arg("-y");
     cmd.arg("-progress");
@@ -140,13 +144,19 @@ fn build_filter_graph(
     let n = clips.len();
     let mut parts = Vec::new();
 
-    // Scale each input to the target height, with optional performer name overlay
+    // Scale each input to the target height, optionally crop to aspect ratio,
+    // with optional performer name overlay
     for (i, clip) in clips.iter().enumerate() {
         let mut chain = format!(
             "[{i}:v]fps=30,scale={w}:{h},setpts=PTS-STARTPTS",
             w = clip.scaled_width,
             h = viewport_height,
         );
+        // Center-crop wider clips to the target aspect ratio
+        if clip.output_width < clip.scaled_width {
+            let cw = clip.output_width;
+            chain.push_str(&format!(",crop={cw}:{viewport_height}:(iw-{cw})/2:0"));
+        }
         if let (true, Some(name)) = (show_performer_names, &clip.performer_name) {
             let escaped = escape_drawtext(name);
             chain.push_str(&format!(
@@ -179,7 +189,7 @@ fn escape_drawtext(text: &str) -> String {
         .replace('\'', "'\\\\\\''")
 }
 
-pub async fn check_ffmpeg() -> eyre::Result<()> {
+pub async fn check_ffmpeg() -> Result<()> {
     let output = Command::new("ffmpeg")
         .arg("-version")
         .stdout(Stdio::null())

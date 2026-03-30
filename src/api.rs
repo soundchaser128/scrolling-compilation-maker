@@ -12,7 +12,7 @@ pub async fn fetch_videos(
     desired_count: usize,
     api_token: Option<&str>,
     seed: f64,
-    orientation: Option<&Orientation>,
+    orientation: Orientation,
     tags: &[String],
     people: &[String],
     with_images: bool,
@@ -32,11 +32,12 @@ pub async fn fetch_videos(
             ("page", &page_str),
             ("seed", &seed),
         ];
+
         if with_images {
             query.push(("fileType", "image"));
         }
-        if let Some(o) = orientation {
-            query.push(("orientation", o.as_api_param()));
+        if let Some(o) = orientation.as_api_param() {
+            query.push(("orientation", o));
         }
         for person in people {
             query.push(("person", &person));

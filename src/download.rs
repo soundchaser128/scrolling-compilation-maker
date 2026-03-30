@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use color_eyre::eyre;
+use color_eyre::{Result, eyre::bail};
 use futures::stream::{self, StreamExt};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use tokio::io::AsyncWriteExt;
@@ -9,11 +9,8 @@ use tracing::info;
 use crate::types::{VideoFile, extension_for_mime};
 
 fn trim_title(title: &str) -> String {
-    if title.len() > 60 {
-        title[0..60].replace("\n", " ").replace("\t", " ")
-    } else {
-        title.to_owned()
-    }
+    let trimmed: String = title.chars().take(60).collect();
+    trimmed.replace('\n', " ").replace('\t', " ")
 }
 
 pub async fn download_clips(
@@ -22,7 +19,7 @@ pub async fn download_clips(
     content_base_url: &str,
     temp_dir: &Path,
     concurrency: usize,
-) -> eyre::Result<Vec<PathBuf>> {
+) -> Result<Vec<PathBuf>> {
     let multi = MultiProgress::new();
     let style = ProgressStyle::with_template("[{bar:30}] {bytes}/{total_bytes} {msg}")
         .unwrap()
@@ -50,11 +47,11 @@ pub async fn download_clips(
         })
         .collect();
 
-    let results: Vec<eyre::Result<PathBuf>> = stream::iter(tasks)
+    let results: Vec<Result<PathBuf>> = stream::iter(tasks)
         .map(|(url, path, pb)| async move {
             let response = client.get(&url).send().await?;
             if !response.status().is_success() {
-                eyre::bail!("Failed to download {url}: {}", response.status());
+                bail!("Failed to download {url}: {}", response.status());
             }
 
             if let Some(len) = response.content_length() {
