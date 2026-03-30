@@ -1,4 +1,5 @@
-use color_eyre::eyre::{self, bail};
+use color_eyre::Result;
+use color_eyre::eyre::bail;
 use reqwest::{Client, Url};
 use tracing::{info, warn};
 
@@ -14,7 +15,8 @@ pub async fn fetch_videos(
     orientation: Option<&Orientation>,
     tags: &[String],
     people: &[String],
-) -> eyre::Result<Vec<VideoFile>> {
+    with_images: bool,
+) -> Result<Vec<VideoFile>> {
     let mut videos = Vec::new();
     let mut page = 0u32;
     let seed = seed.to_string();
@@ -30,6 +32,9 @@ pub async fn fetch_videos(
             ("page", &page_str),
             ("seed", &seed),
         ];
+        if with_images {
+            query.push(("fileType", "image"));
+        }
         if let Some(o) = orientation {
             query.push(("orientation", o.as_api_param()));
         }

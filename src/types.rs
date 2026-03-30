@@ -57,6 +57,10 @@ pub struct Person {
 }
 
 impl VideoFile {
+    pub fn is_image(&self) -> bool {
+        self.mime_type.starts_with("image/")
+    }
+
     pub fn content_url(&self, base_url: &str) -> String {
         let id = self.id.to_string();
         let first_char = &id[0..1];
@@ -65,7 +69,7 @@ impl VideoFile {
     }
 }
 
-fn extension_for_mime(mime: &str) -> &'static str {
+pub fn extension_for_mime(mime: &str) -> &'static str {
     match mime {
         "video/mp4"
         | "video/x-m4v"
@@ -87,4 +91,5 @@ pub struct ClipInfo {
     pub path: PathBuf,
     pub scaled_width: u32,
     pub performer_name: Option<String>,
+    pub is_image: bool,
 }

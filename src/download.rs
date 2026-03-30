@@ -6,7 +6,7 @@ use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use tokio::io::AsyncWriteExt;
 use tracing::info;
 
-use crate::types::VideoFile;
+use crate::types::{VideoFile, extension_for_mime};
 
 pub async fn download_clips(
     client: &reqwest::Client,
@@ -23,7 +23,10 @@ pub async fn download_clips(
     let paths: Vec<PathBuf> = clips
         .iter()
         .enumerate()
-        .map(|(i, _)| temp_dir.join(format!("clip_{i:03}.mp4")))
+        .map(|(i, clip)| {
+            let ext = extension_for_mime(&clip.mime_type);
+            temp_dir.join(format!("clip_{i:03}{ext}"))
+        })
         .collect();
 
     let tasks: Vec<_> = clips

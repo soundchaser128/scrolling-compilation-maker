@@ -40,7 +40,12 @@ pub async fn create_scrolling_video(
     let mut cmd = Command::new("ffmpeg");
 
     for clip in clips {
-        cmd.arg("-stream_loop").arg("-1");
+        if clip.is_image {
+            // -loop 1 makes ffmpeg generate a continuous video stream from a still image
+            cmd.arg("-loop").arg("1");
+        } else {
+            cmd.arg("-stream_loop").arg("-1");
+        }
         cmd.arg("-i").arg(&clip.path);
     }
 

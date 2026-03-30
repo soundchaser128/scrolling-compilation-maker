@@ -4,7 +4,7 @@ mod ffmpeg;
 mod types;
 
 use clap::Parser;
-use color_eyre::eyre;
+use color_eyre::Result;
 use tracing::info;
 
 use crate::types::{ClipInfo, Orientation};
@@ -53,6 +53,10 @@ struct Args {
     #[arg(long = "person")]
     people: Vec<String>,
 
+    /// Include images in the compilation
+    #[arg(long)]
+    with_images: bool,
+
     /// API base URL
     #[arg(long, default_value = "https://alexandria.soundchaser128.com")]
     api_url: String,
@@ -79,7 +83,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> eyre::Result<()> {
+async fn main() -> Result<()> {
     color_eyre::install()?;
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -109,9 +113,10 @@ async fn main() -> eyre::Result<()> {
         args.orientation.as_ref(),
         &args.tags,
         &args.people,
+        args.with_images,
     )
     .await?;
-    info!("Selected {} clips", videos.len());
+    info!("Selected {} clips or images", videos.len());
 
     // 2. Download clips
     info!("Downloading clips...");
@@ -143,6 +148,7 @@ async fn main() -> eyre::Result<()> {
                 path: p.clone(),
                 scaled_width: scaled_w,
                 performer_name,
+                is_image: v.is_image(),
             }
         })
         .collect();
