@@ -66,11 +66,7 @@ fn random_id(format: IdFormat) -> String {
 }
 
 /// Generate an output filename from CLI parameters or a random adjective-adjective-noun name.
-pub fn generate_output_name(
-    tags: &[String],
-    people: &[String],
-    orientation: &Orientation,
-) -> String {
+pub fn generate_output_name(tags: &[String], people: &[String]) -> String {
     let mut parts: Vec<String> = Vec::new();
 
     for p in people {
@@ -79,10 +75,6 @@ pub fn generate_output_name(
 
     for t in tags {
         parts.push(slugify(t));
-    }
-
-    if !matches!(orientation, Orientation::Portrait) {
-        parts.push(orientation.as_api_param().unwrap_or("any").to_lowercase());
     }
 
     if parts.is_empty() {

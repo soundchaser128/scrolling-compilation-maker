@@ -71,13 +71,12 @@ pub async fn create_scrolling_video(
     }
 
     let max_offset = total_width - viewport_width;
-    let speed = max_offset as f64 / duration_secs as f64;
 
     let filter_graph = build_filter_graph(
         clips,
         viewport_width,
         viewport_height,
-        speed,
+        duration_secs,
         max_offset,
         text,
     );
@@ -169,7 +168,7 @@ fn build_filter_graph(
     clips: &[ClipInfo],
     viewport_width: u32,
     viewport_height: u32,
-    speed: f64,
+    duration_secs: u32,
     max_offset: u32,
     text: Option<Text>,
 ) -> String {
@@ -209,9 +208,18 @@ fn build_filter_graph(
     let inputs: String = (0..n).map(|i| format!("[v{i}]")).collect();
     parts.push(format!("{inputs}hstack=inputs={n}[canvas]"));
 
-    // Crop with scrolling offset
+    // Crop with scrolling offset using a blend of linear and smoothstep.
+    // mix = lerp(linear, smoothstep, ease_amount) so the scroll never fully stops,
+    // just slows to ~30% of max speed at start/end.
+    let d = duration_secs;
+    let ease = 0.7; // 0 = fully linear, 1 = full smoothstep
+    let lin = 1.0 - ease;
+    // p = min(t/d, 1); ss = p*p*(3-2*p); blended = (lin*p + ease*ss) * max_offset
+    let p = format!("min(t/{d},1)");
+    let ss = format!("{p}*{p}*(3-2*{p})");
     parts.push(format!(
-        "[canvas]crop={viewport_width}:{viewport_height}:'min(t*{speed:.2},{max_offset})':0[out]"
+        "[canvas]crop={viewport_width}:{viewport_height}:\
+         'min(({lin}*{p}+{ease}*{ss})*{max_offset},{max_offset})':0[out]"
     ));
 
     parts.join(";\n")

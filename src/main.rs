@@ -87,10 +87,6 @@ struct Args {
     #[arg(long, default_value = "https://content.r2.soundchaser128.com")]
     content_url: String,
 
-    /// API authentication token
-    #[arg(long, env = "ALEXANDRIA_API_TOKEN")]
-    api_token: Option<String>,
-
     /// Number of concurrent downloads
     #[arg(long, default_value_t = 4)]
     download_concurrency: usize,
@@ -128,7 +124,7 @@ async fn main() -> Result<()> {
     let seed = args.seed.unwrap_or_else(|| rand::random::<f64>());
     let output = args
         .output
-        .unwrap_or_else(|| generate_output_name(&args.tags, &args.people, &args.orientation));
+        .unwrap_or_else(|| generate_output_name(&args.tags, &args.people));
     if let Some(filter) = args.log {
         tracing_subscriber::fmt()
             .with_env_filter(
