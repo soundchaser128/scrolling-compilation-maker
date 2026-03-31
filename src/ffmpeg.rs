@@ -5,7 +5,7 @@ use color_eyre::eyre::bail;
 use indicatif::{FormattedDuration, ProgressBar, ProgressState, ProgressStyle};
 use regex::Regex;
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
     process::Command,
 };
 use tracing::{debug, info};
@@ -141,6 +141,14 @@ pub async fn create_scrolling_video(
         }
     }
     progress.finish_and_clear();
+    let exit_code = process.wait().await?;
+    if !exit_code.success() {
+        let reader = process.stderr.take().unwrap();
+        let mut reader = BufReader::new(reader);
+        let mut stderr = String::new();
+        reader.read_to_string(&mut stderr).await?;
+        bail!("ffmpeg failed with error code {exit_code}:\n{stderr}");
+    }
 
     info!("Output written to {output}");
     Ok(())

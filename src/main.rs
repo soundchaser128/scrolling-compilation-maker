@@ -226,5 +226,7 @@ async fn main() -> Result<()> {
     )
     .await?;
 
+    println!("Compilation generated to {output}");
+
     Ok(())
 }

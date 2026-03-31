@@ -86,7 +86,7 @@ pub fn generate_output_name(
     }
 
     if parts.is_empty() {
-        random_id(IdFormat::Long)
+        format!("{}.mp4", random_id(IdFormat::Long))
     } else {
         format!("{}-{}.mp4", parts.join("-"), random_id(IdFormat::Short))
     }

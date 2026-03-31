@@ -17,7 +17,7 @@ pub async fn download_song(url: &str, dest_dir: &std::path::Path) -> Result<Path
     spinner.set_message(format!("Downloading audio from {url}"));
 
     let status = Command::new("yt-dlp")
-        .arg("-x") // extract audio
+        .arg("-x")
         .arg("--audio-format")
         .arg("m4a")
         .arg("-o")

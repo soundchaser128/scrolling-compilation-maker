@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{cmp::Ordering, time::Duration};
 
 use color_eyre::Result;
 use color_eyre::eyre::bail;
@@ -106,7 +106,7 @@ pub async fn fetch_videos(
     videos.sort_by(|a, b| {
         a.popularity
             .partial_cmp(&b.popularity)
-            .unwrap_or(std::cmp::Ordering::Equal)
+            .unwrap_or(Ordering::Equal)
     });
 
     warn!(
