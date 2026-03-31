@@ -39,9 +39,14 @@ fn ffmpeg_progress_bar(total_duration_ms: u64) -> ProgressBar {
             .unwrap()
         },
     );
-    ProgressBar::new(total_duration_ms)
+    let pb = ProgressBar::new(total_duration_ms)
         .with_style(style)
-        .with_message("Creating compilation")
+        .with_message("Creating compilation");
+    if crate::progress_hidden() {
+        ProgressBar::hidden()
+    } else {
+        pb
+    }
 }
 
 pub async fn create_scrolling_video(
@@ -51,7 +56,7 @@ pub async fn create_scrolling_video(
     viewport_height: u32,
     duration_secs: u32,
     encoding: &EncodingArgs,
-    show_performer_names: bool,
+    text: Option<Text>,
     audio_path: Option<&Path>,
 ) -> Result<()> {
     static OUT_TIME_REGEX: LazyLock<Regex> =
@@ -74,7 +79,7 @@ pub async fn create_scrolling_video(
         viewport_height,
         speed,
         max_offset,
-        show_performer_names,
+        text,
     );
     info!("Filter graph:\n{filter_graph}");
 
@@ -154,13 +159,19 @@ pub async fn create_scrolling_video(
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum Text {
+    Performers,
+    Tags,
+}
+
 fn build_filter_graph(
     clips: &[ClipInfo],
     viewport_width: u32,
     viewport_height: u32,
     speed: f64,
     max_offset: u32,
-    show_performer_names: bool,
+    text: Option<Text>,
 ) -> String {
     let n = clips.len();
     let mut parts = Vec::new();
@@ -178,10 +189,14 @@ fn build_filter_graph(
             let cw = clip.output_width;
             chain.push_str(&format!(",crop={cw}:{viewport_height}:(iw-{cw})/2:0"));
         }
-        if let (true, Some(name)) = (show_performer_names, &clip.performer_name) {
-            let escaped = escape_drawtext(name);
+        if let Some(text) = text {
+            let text = match text {
+                Text::Performers => clip.performers.join(", "),
+                Text::Tags => clip.tags.join(", "),
+            };
+            let text = escape_drawtext(&text);
             chain.push_str(&format!(
-                ",drawtext=text='{escaped}':fontsize=24:fontcolor=white:\
+                ",drawtext=text='{text}':fontsize=24:fontcolor=white:\
                  borderw=2:bordercolor=black:\
                  x=(w-text_w)/2:y=h-text_h-20"
             ));

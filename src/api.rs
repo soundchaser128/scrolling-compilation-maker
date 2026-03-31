@@ -45,6 +45,7 @@ pub async fn fetch_videos(
             ("size", "50"),
             ("page", &page_str),
             ("seed", &seed),
+            ("withTags", "true"),
         ];
 
         if with_images {
@@ -103,12 +104,6 @@ pub async fn fetch_videos(
     if videos.is_empty() {
         bail!("No suitable videos found");
     }
-    videos.sort_by(|a, b| {
-        a.popularity
-            .partial_cmp(&b.popularity)
-            .unwrap_or(Ordering::Equal)
-    });
-
     warn!(
         "Only found {} clips out of {} requested",
         videos.len(),

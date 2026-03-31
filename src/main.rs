@@ -9,15 +9,22 @@ use color_eyre::Result;
 use reqwest::Client;
 use tracing::{info, level_filters::LevelFilter};
 
-use std::time::Duration;
+use std::{cmp::Ordering, sync::atomic::AtomicBool, time::Duration};
 
 use crate::{
     api::FetchVideosParams,
+    ffmpeg::Text,
     types::{
         AspectRatio, ClipInfo, Codec, Effort, EncodingArgs, Orientation, Quality,
         generate_output_name, parse_duration,
     },
 };
+
+static PROGRESS_HIDDEN: AtomicBool = AtomicBool::new(false);
+
+pub fn progress_hidden() -> bool {
+    PROGRESS_HIDDEN.load(std::sync::atomic::Ordering::SeqCst)
+}
 
 #[derive(Parser)]
 #[command(name = "scrolling-compilation-maker")]
@@ -138,6 +145,9 @@ async fn main() -> Result<()> {
 
     let client = Client::new();
     let temp_dir = tempfile::tempdir()?;
+    let progress_hidden = args.log.is_some();
+
+    PROGRESS_HIDDEN.store(progress_hidden, std::sync::atomic::Ordering::SeqCst);
 
     // 0. Download song if provided
     let mut duration = args.duration;
@@ -169,7 +179,6 @@ async fn main() -> Result<()> {
     )
     .await?;
     info!("Selected {} clips or images", videos.len());
-
     // 2. Download clips
     info!("Downloading clips...");
     let paths = download::download_clips(
@@ -180,11 +189,12 @@ async fn main() -> Result<()> {
         args.download_concurrency,
     )
     .await?;
+    info!(?paths, "Downlaoded clips");
 
     // 3. Compute clip info with scaled dimensions
     let crop_width = args.crop.as_ref().map(|a| a.crop_width(args.height));
-    let clips: Vec<ClipInfo> = videos
-        .iter()
+    let mut clips: Vec<ClipInfo> = videos
+        .into_iter()
         .zip(paths.iter())
         .map(|(v, p)| {
             let w = v.width.unwrap() as u32;
@@ -197,20 +207,23 @@ async fn main() -> Result<()> {
                 Some(cw) => scaled_w.min(cw),
                 None => scaled_w,
             };
-            let performer_name = v
-                .people
-                .iter()
-                .find(|p| p.person_type == "performer")
-                .map(|p| p.name.clone());
             ClipInfo {
+                is_image: v.is_image(),
                 path: p.clone(),
                 scaled_width: scaled_w,
                 output_width: output_w,
-                performer_name,
-                is_image: v.is_image(),
+                performers: v.people.into_iter().map(|p| p.name).collect(),
+                tags: v.tags,
+                popularity: v.popularity,
             }
         })
         .collect();
+
+    clips.sort_by(|a, b| {
+        a.popularity
+            .partial_cmp(&b.popularity)
+            .unwrap_or(Ordering::Equal)
+    });
 
     // 4. Create scrolling video
     let encoding = EncodingArgs::new(&args.codec, &args.quality, &args.effort, args.gpu);
@@ -221,7 +234,7 @@ async fn main() -> Result<()> {
         args.height,
         duration.as_secs() as u32,
         &encoding,
-        args.people.is_empty(),
+        Some(Text::Performers),
         audio_path.as_deref(),
     )
     .await?;

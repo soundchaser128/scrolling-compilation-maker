@@ -179,7 +179,7 @@ pub struct PageInfo {
     pub total_pages: u32,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum FileType {
     Video,
@@ -187,7 +187,7 @@ pub enum FileType {
     Text,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VideoFile {
     pub id: Uuid,
@@ -200,9 +200,10 @@ pub struct VideoFile {
     #[serde(default)]
     pub people: Vec<Person>,
     pub popularity: f32,
+    pub tags: Vec<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Person {
     pub name: String,
     #[serde(rename = "type")]
@@ -246,7 +247,9 @@ pub struct ClipInfo {
     pub scaled_width: u32,
     /// Width after optional crop (same as scaled_width if no crop).
     pub output_width: u32,
-    pub performer_name: Option<String>,
+    pub performers: Vec<String>,
+    pub tags: Vec<String>,
+    pub popularity: f32,
     pub is_image: bool,
 }
 

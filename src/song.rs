@@ -1,4 +1,8 @@
-use std::{path::PathBuf, process::Stdio, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    process::Stdio,
+    time::Duration,
+};
 
 use color_eyre::Result;
 use color_eyre::eyre::bail;
@@ -7,14 +11,19 @@ use tokio::process::Command;
 use tracing::info;
 
 /// Download audio from a URL using yt-dlp, returning the path to the downloaded file.
-pub async fn download_song(url: &str, dest_dir: &std::path::Path) -> Result<PathBuf> {
+pub async fn download_song(url: &str, dest_dir: &Path) -> Result<PathBuf> {
     check_yt_dlp().await?;
 
     let output_template = dest_dir.join("song.%(ext)s");
-    let spinner = ProgressBar::new_spinner()
-        .with_style(ProgressStyle::with_template("{spinner} {msg}").unwrap());
-    spinner.enable_steady_tick(Duration::from_millis(100));
-    spinner.set_message(format!("Downloading audio from {url}"));
+    let spinner = if crate::progress_hidden() {
+        ProgressBar::hidden()
+    } else {
+        let s = ProgressBar::new_spinner()
+            .with_style(ProgressStyle::with_template("{spinner} {msg}").unwrap());
+        s.enable_steady_tick(Duration::from_millis(100));
+        s.set_message(format!("Downloading audio from {url}"));
+        s
+    };
 
     let status = Command::new("yt-dlp")
         .arg("-x")

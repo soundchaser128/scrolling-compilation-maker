@@ -4,7 +4,7 @@ use color_eyre::{Result, eyre::bail};
 use futures::stream::{self, StreamExt};
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use tokio::io::AsyncWriteExt;
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::types::{VideoFile, extension_for_mime};
 
@@ -21,9 +21,8 @@ pub async fn download_clips(
     concurrency: usize,
 ) -> Result<Vec<PathBuf>> {
     let multi = MultiProgress::new();
-    let style = ProgressStyle::with_template("[{bar:30}] {bytes}/{total_bytes} {msg}")
-        .unwrap()
-        .progress_chars("=> ");
+    let style =
+        ProgressStyle::with_template("{bar:.cyan/blue} {bytes}/{total_bytes} {msg}").unwrap();
 
     let paths: Vec<PathBuf> = clips
         .iter()
@@ -39,10 +38,16 @@ pub async fn download_clips(
         .zip(paths.iter())
         .map(|(clip, path)| {
             let url = clip.content_url(content_base_url);
+            info!(?clip, ?path, "Downloading clip");
             let path = path.clone();
-            let pb = multi.add(ProgressBar::new(0));
-            pb.set_style(style.clone());
-            pb.set_message(format!("{}", trim_title(&clip.title)));
+            let pb = if crate::progress_hidden() {
+                multi.add(ProgressBar::hidden())
+            } else {
+                let pb = multi.add(ProgressBar::new(0));
+                pb.set_style(style.clone());
+                pb.set_message(format!("{}", trim_title(&clip.title)));
+                pb
+            };
             (url, path, pb)
         })
         .collect();
@@ -77,7 +82,12 @@ pub async fn download_clips(
 
     let mut downloaded = Vec::with_capacity(results.len());
     for result in results {
-        downloaded.push(result?);
+        match result {
+            Ok(path) => downloaded.push(path),
+            Err(e) => {
+                warn!("Failed to download: {e}");
+            }
+        }
     }
 
     // Sort by filename to maintain original order
