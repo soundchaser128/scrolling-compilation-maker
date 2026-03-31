@@ -199,6 +199,7 @@ pub struct VideoFile {
     pub mime_type: String,
     #[serde(default)]
     pub people: Vec<Person>,
+    pub popularity: f32,
 }
 
 #[derive(Deserialize)]
@@ -281,7 +282,11 @@ pub struct EncodingArgs {
 impl EncodingArgs {
     pub fn new(codec: &Codec, quality: &Quality, effort: &Effort, gpu: bool) -> Self {
         if gpu {
-            Self::nvenc(codec, quality, effort)
+            if cfg!(all(target_os = "macos", target_arch = "aarch64")) {
+                Self::videotoolbox(codec, quality)
+            } else {
+                Self::nvenc(codec, quality, effort)
+            }
         } else {
             Self::software(codec, quality, effort)
         }
@@ -385,6 +390,45 @@ impl EncodingArgs {
                 preset.to_string(),
                 "-rc".to_string(),
                 "vbr".to_string(),
+            ],
+        }
+    }
+
+    fn videotoolbox(codec: &Codec, quality: &Quality) -> Self {
+        let (codec_name, q) = match codec {
+            Codec::X264 => (
+                "h264_videotoolbox",
+                match quality {
+                    Quality::Low => 65,
+                    Quality::Medium => 55,
+                    Quality::High => 42,
+                    Quality::VeryHigh => 30,
+                },
+            ),
+            Codec::Hevc => (
+                "hevc_videotoolbox",
+                match quality {
+                    Quality::Low => 65,
+                    Quality::Medium => 55,
+                    Quality::High => 42,
+                    Quality::VeryHigh => 30,
+                },
+            ),
+            Codec::Av1 => {
+                // VideoToolbox doesn't support AV1 encoding; fall back to software
+                return Self::software(codec, quality, &Effort::Medium);
+            }
+        };
+
+        EncodingArgs {
+            codec: codec_name.to_string(),
+            quality_flag: "-q:v",
+            quality_value: q,
+            preset_args: vec![
+                "-allow_sw".to_string(),
+                "1".to_string(),
+                "-realtime".to_string(),
+                "0".to_string(),
             ],
         }
     }

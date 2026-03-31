@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use color_eyre::Result;
 use color_eyre::eyre::bail;
 use reqwest::{Client, Url};
@@ -5,17 +7,29 @@ use tracing::{info, warn};
 
 use crate::types::{Orientation, PageResponse, VideoFile};
 
+pub struct FetchVideosParams<'a> {
+    pub api_url: &'a str,
+    pub max_clip_duration: Duration,
+    pub desired_count: usize,
+    pub seed: f64,
+    pub orientation: Orientation,
+    pub tags: &'a [String],
+    pub people: &'a [String],
+    pub with_images: bool,
+}
+
 pub async fn fetch_videos(
     client: &Client,
-    api_url: &str,
-    max_clip_duration_ms: u64,
-    desired_count: usize,
-    api_token: Option<&str>,
-    seed: f64,
-    orientation: Orientation,
-    tags: &[String],
-    people: &[String],
-    with_images: bool,
+    FetchVideosParams {
+        api_url,
+        max_clip_duration,
+        desired_count,
+        seed,
+        orientation,
+        tags,
+        people,
+        with_images,
+    }: FetchVideosParams<'_>,
 ) -> Result<Vec<VideoFile>> {
     let mut videos = Vec::new();
     let mut page = 0u32;
@@ -49,12 +63,7 @@ pub async fn fetch_videos(
         for (k, v) in query {
             url.query_pairs_mut().append_pair(k, v);
         }
-
-        let mut request = client.get(url);
-        if let Some(token) = api_token {
-            request = request.header("Cookie", format!("SESSION={token}"));
-        }
-
+        let request = client.get(url);
         let response = request.send().await?;
         if !response.status().is_success() {
             bail!(
@@ -74,7 +83,7 @@ pub async fn fetch_videos(
                 continue;
             }
 
-            if video.duration.unwrap() > max_clip_duration_ms {
+            if video.duration.unwrap() > max_clip_duration.as_millis() as u64 {
                 continue;
             }
 
@@ -94,6 +103,11 @@ pub async fn fetch_videos(
     if videos.is_empty() {
         bail!("No suitable videos found");
     }
+    videos.sort_by(|a, b| {
+        a.popularity
+            .partial_cmp(&b.popularity)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     warn!(
         "Only found {} clips out of {} requested",

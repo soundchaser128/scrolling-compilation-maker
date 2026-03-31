@@ -1,4 +1,4 @@
-use std::{fmt, process::Stdio, sync::LazyLock, time::Duration};
+use std::{fmt, path::Path, process::Stdio, sync::LazyLock, time::Duration};
 
 use color_eyre::Result;
 use color_eyre::eyre::bail;
@@ -52,6 +52,7 @@ pub async fn create_scrolling_video(
     duration_secs: u32,
     encoding: &EncodingArgs,
     show_performer_names: bool,
+    audio_path: Option<&Path>,
 ) -> Result<()> {
     static OUT_TIME_REGEX: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"out_time_us=(\d+)").unwrap());
@@ -91,8 +92,21 @@ pub async fn create_scrolling_video(
         cmd.arg("-i").arg(&clip.path);
     }
 
+    // Audio input is added after all video inputs
+    let audio_input_index = clips.len();
+    if let Some(audio) = audio_path {
+        cmd.arg("-i").arg(audio);
+    }
+
     cmd.arg("-filter_complex").arg(&filter_graph);
     cmd.arg("-map").arg("[out]");
+    if audio_path.is_some() {
+        cmd.arg("-map").arg(format!("{audio_input_index}:a"));
+        cmd.arg("-c:a").arg("aac");
+        cmd.arg("-shortest");
+    } else {
+        cmd.arg("-an");
+    }
     cmd.arg("-t").arg(duration_secs.to_string());
     cmd.arg("-c:v").arg(&encoding.codec);
     for arg in &encoding.preset_args {
@@ -100,7 +114,6 @@ pub async fn create_scrolling_video(
     }
     cmd.arg(encoding.quality_flag)
         .arg(encoding.quality_value.to_string());
-    cmd.arg("-an");
     cmd.arg("-y");
     cmd.arg("-progress");
     cmd.arg("-");

@@ -1,17 +1,22 @@
 mod api;
 mod download;
 mod ffmpeg;
+mod song;
 mod types;
 
 use clap::Parser;
 use color_eyre::Result;
+use reqwest::Client;
 use tracing::{info, level_filters::LevelFilter};
 
 use std::time::Duration;
 
-use crate::types::{
-    AspectRatio, ClipInfo, Codec, Effort, EncodingArgs, Orientation, Quality, generate_output_name,
-    parse_duration,
+use crate::{
+    api::FetchVideosParams,
+    types::{
+        AspectRatio, ClipInfo, Codec, Effort, EncodingArgs, Orientation, Quality,
+        generate_output_name, parse_duration,
+    },
 };
 
 #[derive(Parser)]
@@ -65,7 +70,7 @@ struct Args {
     /// Crop clips to this aspect ratio before combining (e.g. "9:16", "3:4").
     /// Useful when selecting landscape/square videos to make them narrower.
     #[arg(long, value_parser = AspectRatio::parse)]
-    crop_aspect: Option<AspectRatio>,
+    crop: Option<AspectRatio>,
 
     /// API base URL
     #[arg(long, default_value = "https://alexandria.soundchaser128.com")]
@@ -99,6 +104,11 @@ struct Args {
     #[arg(long)]
     gpu: bool,
 
+    /// URL of a song to use as audio. Downloaded with yt-dlp; sets compilation
+    /// duration to the song's length.
+    #[arg(long)]
+    song: Option<String>,
+
     /// Enable logging with the specified level.
     #[arg(long)]
     log: Option<LevelFilter>,
@@ -126,22 +136,36 @@ async fn main() -> Result<()> {
 
     ffmpeg::check_ffmpeg().await?;
 
-    let client = reqwest::Client::new();
+    let client = Client::new();
     let temp_dir = tempfile::tempdir()?;
+
+    // 0. Download song if provided
+    let mut duration = args.duration;
+    let audio_path = match &args.song {
+        Some(url) => {
+            let path = song::download_song(url, temp_dir.path()).await?;
+            let song_duration = song::probe_duration(&path).await?;
+            info!("Song duration: {:.1}s", song_duration.as_secs_f64());
+            duration = song_duration;
+            Some(path)
+        }
+        None => None,
+    };
 
     // 1. Fetch video metadata
     info!("Fetching video metadata...");
     let videos = api::fetch_videos(
         &client,
-        &args.api_url,
-        args.max_clip_duration.as_millis() as u64,
-        args.clip_count,
-        args.api_token.as_deref(),
-        seed,
-        args.orientation,
-        &args.tags,
-        &args.people,
-        args.with_images,
+        FetchVideosParams {
+            api_url: &args.api_url,
+            max_clip_duration: args.max_clip_duration,
+            desired_count: args.clip_count,
+            seed,
+            orientation: args.orientation,
+            tags: &args.tags,
+            people: &args.people,
+            with_images: args.with_images,
+        },
     )
     .await?;
     info!("Selected {} clips or images", videos.len());
@@ -158,7 +182,7 @@ async fn main() -> Result<()> {
     .await?;
 
     // 3. Compute clip info with scaled dimensions
-    let crop_width = args.crop_aspect.as_ref().map(|a| a.crop_width(args.height));
+    let crop_width = args.crop.as_ref().map(|a| a.crop_width(args.height));
     let clips: Vec<ClipInfo> = videos
         .iter()
         .zip(paths.iter())
@@ -195,9 +219,10 @@ async fn main() -> Result<()> {
         &output,
         args.width,
         args.height,
-        args.duration.as_secs() as u32,
+        duration.as_secs() as u32,
         &encoding,
         args.people.is_empty(),
+        audio_path.as_deref(),
     )
     .await?;
 
