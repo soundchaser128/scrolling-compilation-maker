@@ -15,7 +15,7 @@ use crate::{
     api::FetchVideosParams,
     ffmpeg::Text,
     types::{
-        AspectRatio, ClipInfo, Codec, Effort, EncodingArgs, Orientation, Quality,
+        AspectRatio, ClipInfo, Codec, Effort, EncodingArgs, Orientation, Quality, ScrollEasing,
         generate_output_name, parse_duration,
     },
 };
@@ -111,6 +111,10 @@ struct Args {
     /// duration to the song's length.
     #[arg(long)]
     song: Option<String>,
+
+    /// Scrolling easing mode
+    #[arg(long, value_enum, default_value_t = ScrollEasing::Linear)]
+    easing: ScrollEasing,
 
     /// Enable logging with the specified level.
     #[arg(long)]
@@ -232,6 +236,7 @@ async fn main() -> Result<()> {
         &encoding,
         Some(Text::Performers),
         audio_path.as_deref(),
+        &args.easing,
     )
     .await?;
 

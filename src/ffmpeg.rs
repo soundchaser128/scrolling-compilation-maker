@@ -10,7 +10,7 @@ use tokio::{
 };
 use tracing::{debug, info};
 
-use crate::types::{ClipInfo, EncodingArgs};
+use crate::types::{ClipInfo, EncodingArgs, ScrollEasing};
 
 fn ffmpeg_progress_bar(total_duration_ms: u64) -> ProgressBar {
     let style = ProgressStyle::with_template(
@@ -58,6 +58,7 @@ pub async fn create_scrolling_video(
     encoding: &EncodingArgs,
     text: Option<Text>,
     audio_path: Option<&Path>,
+    easing: &ScrollEasing,
 ) -> Result<()> {
     static OUT_TIME_REGEX: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"out_time_us=(\d+)").unwrap());
@@ -79,6 +80,7 @@ pub async fn create_scrolling_video(
         duration_secs,
         max_offset,
         text,
+        easing,
     );
     info!("Filter graph:\n{filter_graph}");
 
@@ -171,6 +173,7 @@ fn build_filter_graph(
     duration_secs: u32,
     max_offset: u32,
     text: Option<Text>,
+    easing: &ScrollEasing,
 ) -> String {
     let n = clips.len();
     let mut parts = Vec::new();
@@ -208,18 +211,25 @@ fn build_filter_graph(
     let inputs: String = (0..n).map(|i| format!("[v{i}]")).collect();
     parts.push(format!("{inputs}hstack=inputs={n}[canvas]"));
 
-    // Crop with scrolling offset using a blend of linear and smoothstep.
-    // mix = lerp(linear, smoothstep, ease_amount) so the scroll never fully stops,
-    // just slows to ~30% of max speed at start/end.
+    // Crop with scrolling offset
     let d = duration_secs;
-    let ease = 0.7; // 0 = fully linear, 1 = full smoothstep
-    let lin = 1.0 - ease;
-    // p = min(t/d, 1); ss = p*p*(3-2*p); blended = (lin*p + ease*ss) * max_offset
     let p = format!("min(t/{d},1)");
-    let ss = format!("{p}*{p}*(3-2*{p})");
+    let offset_expr = match easing {
+        ScrollEasing::Linear => {
+            format!("{p}*{max_offset}")
+        }
+        ScrollEasing::Ease => {
+            // Blend of linear and smoothstep so the scroll never fully stops,
+            // just slows to ~30% of max speed at start/end.
+            let ease = 0.7; // 0 = fully linear, 1 = full smoothstep
+            let lin = 1.0 - ease;
+            let ss = format!("{p}*{p}*(3-2*{p})");
+            format!("({lin}*{p}+{ease}*{ss})*{max_offset}")
+        }
+    };
     parts.push(format!(
         "[canvas]crop={viewport_width}:{viewport_height}:\
-         'min(({lin}*{p}+{ease}*{ss})*{max_offset},{max_offset})':0[out]"
+         'min({offset_expr},{max_offset})':0[out]"
     ));
 
     parts.join(";\n")

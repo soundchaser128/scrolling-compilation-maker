@@ -246,6 +246,12 @@ pub struct ClipInfo {
 }
 
 #[derive(Clone, ValueEnum)]
+pub enum ScrollEasing {
+    Linear,
+    Ease,
+}
+
+#[derive(Clone, ValueEnum)]
 pub enum Codec {
     X264,
     Hevc,
