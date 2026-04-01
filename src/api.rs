@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, time::Duration};
+use std::time::Duration;
 
 use color_eyre::Result;
 use color_eyre::eyre::bail;

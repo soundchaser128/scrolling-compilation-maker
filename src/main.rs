@@ -50,6 +50,10 @@ struct Args {
     #[arg(short, long, default_value = "1m", value_parser = parse_duration)]
     duration: Duration,
 
+    /// Text to render with each clip.
+    #[arg(long)]
+    text: Option<Text>,
+
     /// Maximum duration per source clip (e.g. "30s", "1m")
     #[arg(long, default_value = "30s", value_parser = parse_duration)]
     max_clip_duration: Duration,
@@ -234,7 +238,7 @@ async fn main() -> Result<()> {
         args.height,
         duration.as_secs() as u32,
         &encoding,
-        Some(Text::Performers),
+        args.text,
         audio_path.as_deref(),
         &args.easing,
     )

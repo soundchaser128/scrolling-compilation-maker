@@ -1,5 +1,6 @@
 use std::{fmt, path::Path, process::Stdio, sync::LazyLock, time::Duration};
 
+use clap::ValueEnum;
 use color_eyre::Result;
 use color_eyre::eyre::bail;
 use indicatif::{FormattedDuration, ProgressBar, ProgressState, ProgressStyle};
@@ -160,7 +161,7 @@ pub async fn create_scrolling_video(
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum Text {
     Performers,
     Tags,
