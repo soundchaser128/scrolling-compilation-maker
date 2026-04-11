@@ -1,8 +1,7 @@
-mod api;
 mod cli;
-mod download;
 mod ffmpeg;
 mod song;
+mod source;
 mod types;
 
 use clap::Parser;
@@ -13,8 +12,8 @@ use tracing::info;
 use std::{cmp::Ordering, sync::atomic::AtomicBool};
 
 use crate::{
-    api::FetchVideosParams,
     cli::Args,
+    source::alexandria::FetchVideosParams,
     types::{ClipInfo, EncodingArgs, generate_output_name},
 };
 
@@ -67,7 +66,7 @@ async fn main() -> Result<()> {
 
     // 1. Fetch video metadata
     info!("Fetching video metadata...");
-    let videos = api::fetch_videos(
+    let videos = source::alexandria::fetch_videos(
         &client,
         FetchVideosParams {
             api_url: &args.api_url,
@@ -82,17 +81,10 @@ async fn main() -> Result<()> {
     )
     .await?;
     info!("Selected {} clips or images", videos.len());
-    // 2. Download clips
-    info!("Downloading clips...");
-    let paths = download::download_clips(
-        &client,
-        &videos,
-        &args.content_url,
-        temp_dir.path(),
-        args.download_concurrency,
-    )
-    .await?;
-    info!(?paths, "Downlaoded clips");
+    let paths: Vec<_> = videos
+        .iter()
+        .map(|v| v.content_url(&args.content_url))
+        .collect();
 
     // 3. Compute clip info with scaled dimensions
     let crop_width = args.crop.as_ref().map(|a| a.crop_width(args.height));

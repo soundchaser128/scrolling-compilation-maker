@@ -1,4 +1,4 @@
-use std::{num::ParseIntError, path::PathBuf, sync::LazyLock, time::Duration};
+use std::{num::ParseIntError, sync::LazyLock, time::Duration};
 
 use clap::ValueEnum;
 use rand::prelude::IndexedRandom;
@@ -234,7 +234,7 @@ pub fn extension_for_mime(mime: &str) -> &'static str {
 }
 
 pub struct ClipInfo {
-    pub path: PathBuf,
+    pub path: String,
     /// Width after scaling to viewport height (preserving aspect ratio).
     pub scaled_width: u32,
     /// Width after optional crop (same as scaled_width if no crop).
