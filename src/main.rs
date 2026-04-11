@@ -6,14 +6,13 @@ mod types;
 
 use clap::Parser;
 use color_eyre::Result;
-use reqwest::Client;
 use tracing::info;
 
 use std::{cmp::Ordering, sync::atomic::AtomicBool};
 
 use crate::{
     cli::Args,
-    source::alexandria::FetchVideosParams,
+    source::{FetchVideosParams, MediaSource, alexandria::AlexandriaMediaSource},
     types::{ClipInfo, EncodingArgs, generate_output_name},
 };
 
@@ -45,7 +44,6 @@ async fn main() -> Result<()> {
 
     ffmpeg::check_ffmpeg().await?;
 
-    let client = Client::new();
     let temp_dir = tempfile::tempdir()?;
     let progress_hidden = args.log.is_some();
 
@@ -66,9 +64,9 @@ async fn main() -> Result<()> {
 
     // 1. Fetch video metadata
     info!("Fetching video metadata...");
-    let videos = source::alexandria::fetch_videos(
-        &client,
-        FetchVideosParams {
+    let source = AlexandriaMediaSource::default();
+    let videos = source
+        .fetch(FetchVideosParams {
             api_url: &args.api_url,
             max_clip_duration: args.max_clip_duration,
             desired_count: args.clip_count,
@@ -77,9 +75,8 @@ async fn main() -> Result<()> {
             tags: &args.tags,
             people: &args.people,
             with_images: args.with_images,
-        },
-    )
-    .await?;
+        })
+        .await?;
     info!("Selected {} clips or images", videos.len());
     let paths: Vec<_> = videos
         .iter()

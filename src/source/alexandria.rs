@@ -1,24 +1,25 @@
-use std::time::Duration;
-
 use color_eyre::Result;
 use color_eyre::eyre::bail;
 use reqwest::{Client, Url};
 use tracing::{info, warn};
 
-use crate::types::{Orientation, PageResponse, VideoFile};
+use crate::{
+    source::{FetchVideosParams, MediaSource},
+    types::{PageResponse, VideoFile},
+};
 
-pub struct FetchVideosParams<'a> {
-    pub api_url: &'a str,
-    pub max_clip_duration: Duration,
-    pub desired_count: usize,
-    pub seed: f64,
-    pub orientation: Orientation,
-    pub tags: &'a [String],
-    pub people: &'a [String],
-    pub with_images: bool,
+#[derive(Default)]
+pub struct AlexandriaMediaSource {
+    client: Client,
 }
 
-pub async fn fetch_videos(
+impl MediaSource for AlexandriaMediaSource {
+    async fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<VideoFile>> {
+        fetch_videos(&self.client, params).await
+    }
+}
+
+async fn fetch_videos(
     client: &Client,
     FetchVideosParams {
         api_url,
