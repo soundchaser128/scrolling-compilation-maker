@@ -181,9 +181,8 @@ pub enum FileType {
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct VideoFile {
+pub struct MediaFile {
     pub id: Uuid,
-    pub title: String,
     pub file_type: FileType,
     pub width: Option<i32>,
     pub height: Option<i32>,
@@ -198,11 +197,9 @@ pub struct VideoFile {
 #[derive(Deserialize, Debug)]
 pub struct Person {
     pub name: String,
-    #[serde(rename = "type")]
-    pub person_type: String,
 }
 
-impl VideoFile {
+impl MediaFile {
     pub fn is_image(&self) -> bool {
         matches!(self.file_type, FileType::Image)
     }
@@ -245,20 +242,20 @@ pub struct ClipInfo {
     pub is_image: bool,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ScrollEasing {
     Linear,
     Ease,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum Codec {
     X264,
     Hevc,
     Av1,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum Quality {
     Low,
     Medium,
@@ -266,7 +263,7 @@ pub enum Quality {
     VeryHigh,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum Effort {
     Low,
     Medium,

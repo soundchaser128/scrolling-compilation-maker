@@ -50,16 +50,30 @@ fn ffmpeg_progress_bar(total_duration_ms: u64) -> ProgressBar {
     }
 }
 
+pub struct VideoParams<'a> {
+    pub clips: &'a [ClipInfo],
+    pub output: &'a str,
+    pub viewport_width: u32,
+    pub viewport_height: u32,
+    pub duration_secs: u32,
+    pub encoding: EncodingArgs,
+    pub text: Option<Text>,
+    pub audio_path: Option<&'a Path>,
+    pub easing: ScrollEasing,
+}
+
 pub async fn create_scrolling_video(
-    clips: &[ClipInfo],
-    output: &str,
-    viewport_width: u32,
-    viewport_height: u32,
-    duration_secs: u32,
-    encoding: &EncodingArgs,
-    text: Option<Text>,
-    audio_path: Option<&Path>,
-    easing: &ScrollEasing,
+    VideoParams {
+        clips,
+        output,
+        viewport_width,
+        viewport_height,
+        duration_secs,
+        encoding,
+        text,
+        audio_path,
+        easing,
+    }: VideoParams<'_>,
 ) -> Result<()> {
     static OUT_TIME_REGEX: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"out_time_us=(\d+)").unwrap());
@@ -174,7 +188,7 @@ fn build_filter_graph(
     duration_secs: u32,
     max_offset: u32,
     text: Option<Text>,
-    easing: &ScrollEasing,
+    easing: ScrollEasing,
 ) -> String {
     let n = clips.len();
     let mut parts = Vec::new();

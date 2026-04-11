@@ -1,7 +1,7 @@
 use color_eyre::Result;
 use std::time::Duration;
 
-use crate::types::{Orientation, VideoFile};
+use crate::types::{MediaFile, Orientation};
 
 pub mod alexandria;
 pub mod stash;
@@ -18,5 +18,5 @@ pub struct FetchVideosParams<'a> {
 }
 
 pub trait MediaSource {
-    async fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<VideoFile>>;
+    async fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<MediaFile>>;
 }

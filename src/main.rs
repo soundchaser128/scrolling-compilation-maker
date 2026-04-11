@@ -12,6 +12,7 @@ use std::{cmp::Ordering, sync::atomic::AtomicBool};
 
 use crate::{
     cli::Args,
+    ffmpeg::VideoParams,
     source::{FetchVideosParams, MediaSource, alexandria::AlexandriaMediaSource},
     types::{ClipInfo, EncodingArgs, generate_output_name},
 };
@@ -26,7 +27,7 @@ pub fn progress_hidden() -> bool {
 async fn main() -> Result<()> {
     color_eyre::install()?;
     let args = Args::parse();
-    let seed = args.seed.unwrap_or_else(|| rand::random::<f64>());
+    let seed = args.seed.unwrap_or_else(rand::random);
     let output = args
         .output
         .unwrap_or_else(|| generate_output_name(&args.tags, &args.people));
@@ -119,17 +120,17 @@ async fn main() -> Result<()> {
 
     // 4. Create scrolling video
     let encoding = EncodingArgs::new(&args.codec, &args.quality, &args.effort, args.gpu);
-    ffmpeg::create_scrolling_video(
-        &clips,
-        &output,
-        args.width,
-        args.height,
-        duration.as_secs() as u32,
-        &encoding,
-        args.text,
-        audio_path.as_deref(),
-        &args.easing,
-    )
+    ffmpeg::create_scrolling_video(VideoParams {
+        clips: &clips,
+        output: &output,
+        viewport_height: args.height,
+        viewport_width: args.width,
+        duration_secs: duration.as_secs() as u32,
+        encoding,
+        text: args.text,
+        audio_path: audio_path.as_deref(),
+        easing: args.easing,
+    })
     .await?;
 
     println!("Compilation generated to {output}");

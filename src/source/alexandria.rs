@@ -5,7 +5,7 @@ use tracing::{info, warn};
 
 use crate::{
     source::{FetchVideosParams, MediaSource},
-    types::{PageResponse, VideoFile},
+    types::{MediaFile, PageResponse},
 };
 
 #[derive(Default)]
@@ -14,7 +14,7 @@ pub struct AlexandriaMediaSource {
 }
 
 impl MediaSource for AlexandriaMediaSource {
-    async fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<VideoFile>> {
+    async fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<MediaFile>> {
         fetch_videos(&self.client, params).await
     }
 }
@@ -31,7 +31,7 @@ async fn fetch_videos(
         people,
         with_images,
     }: FetchVideosParams<'_>,
-) -> Result<Vec<VideoFile>> {
+) -> Result<Vec<MediaFile>> {
     let mut videos = Vec::new();
     let mut page = 0u32;
     let seed = seed.to_string();
@@ -75,7 +75,7 @@ async fn fetch_videos(
             );
         }
 
-        let page_response: PageResponse<VideoFile> = response.json().await?;
+        let page_response: PageResponse<MediaFile> = response.json().await?;
         let total_pages = page_response.page.total_pages;
 
         for video in page_response.content {
