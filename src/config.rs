@@ -12,30 +12,24 @@ fn default_content_url() -> String {
     "https://content.r2.soundchaser128.com".to_string()
 }
 
-fn deserialize_level_filter<'de, D>(deserializer: D) -> Result<Option<LevelFilter>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let s: Option<String> = Option::deserialize(deserializer)?;
-    match s {
-        None => Ok(None),
-        Some(s) => s
-            .parse::<LevelFilter>()
-            .map(Some)
-            .map_err(serde::de::Error::custom),
-    }
+#[derive(Deserialize, Debug, Default)]
+#[serde(default)]
+struct RawConfig {
+    #[serde(default = "default_api_url")]
+    api_url: String,
+    #[serde(default = "default_content_url")]
+    content_url: String,
+    #[serde(default)]
+    gpu: bool,
+    #[serde(default)]
+    log: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
-#[serde(default)]
+#[derive(Debug)]
 pub struct Config {
-    #[serde(default = "default_api_url")]
     pub api_url: String,
-    #[serde(default = "default_content_url")]
     pub content_url: String,
-    #[serde(default)]
     pub gpu: bool,
-    #[serde(default, deserialize_with = "deserialize_level_filter")]
     pub log: Option<LevelFilter>,
 }
 
@@ -59,13 +53,23 @@ fn config_path() -> Option<PathBuf> {
 
 impl Config {
     pub fn load() -> Result<Self> {
-        match config_path() {
+        let raw = match config_path() {
             Some(path) => {
                 let content = std::fs::read_to_string(&path)?;
-                let config: Config = toml::from_str(&content)?;
-                Ok(config)
+                toml::from_str::<RawConfig>(&content)?
             }
-            None => Ok(Config::default()),
-        }
+            None => RawConfig::default(),
+        };
+        let log = raw
+            .log
+            .map(|s| s.parse::<LevelFilter>())
+            .transpose()
+            .map_err(|e| color_eyre::eyre::eyre!("invalid log level in config: {e}"))?;
+        Ok(Config {
+            api_url: raw.api_url,
+            content_url: raw.content_url,
+            gpu: raw.gpu,
+            log,
+        })
     }
 }
