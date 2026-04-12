@@ -12,17 +12,24 @@ fn default_content_url() -> String {
     "https://content.r2.soundchaser128.com".to_string()
 }
 
-#[derive(Deserialize, Debug, Default)]
+#[derive(Deserialize, Debug)]
 #[serde(default)]
 struct RawConfig {
-    #[serde(default = "default_api_url")]
     api_url: String,
-    #[serde(default = "default_content_url")]
     content_url: String,
-    #[serde(default)]
     gpu: bool,
-    #[serde(default)]
     log: Option<String>,
+}
+
+impl Default for RawConfig {
+    fn default() -> Self {
+        Self {
+            api_url: default_api_url(),
+            content_url: default_content_url(),
+            gpu: false,
+            log: None,
+        }
+    }
 }
 
 #[derive(Debug)]
