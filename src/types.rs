@@ -431,3 +431,54 @@ impl EncodingArgs {
         }
     }
 }
+
+impl std::fmt::Display for Orientation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Orientation::Any => write!(f, "Any"),
+            Orientation::Portrait => write!(f, "Portrait"),
+            Orientation::Landscape => write!(f, "Landscape"),
+            Orientation::Square => write!(f, "Square"),
+        }
+    }
+}
+
+impl std::fmt::Display for Codec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Codec::X264 => write!(f, "H.264 (x264)"),
+            Codec::Hevc => write!(f, "HEVC (x265)"),
+            Codec::Av1 => write!(f, "AV1 (SVT-AV1)"),
+        }
+    }
+}
+
+impl std::fmt::Display for Quality {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Quality::Low => write!(f, "Low"),
+            Quality::Medium => write!(f, "Medium"),
+            Quality::High => write!(f, "High"),
+            Quality::VeryHigh => write!(f, "Very High"),
+        }
+    }
+}
+
+impl std::fmt::Display for Effort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Effort::Low => write!(f, "Low"),
+            Effort::Medium => write!(f, "Medium"),
+            Effort::High => write!(f, "High"),
+        }
+    }
+}
+
+impl std::fmt::Display for ScrollEasing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ScrollEasing::Linear => write!(f, "Linear"),
+            ScrollEasing::Ease => write!(f, "Ease (smoothstep)"),
+        }
+    }
+}
