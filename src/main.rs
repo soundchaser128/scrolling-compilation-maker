@@ -1,4 +1,5 @@
 mod cli;
+mod config;
 mod ffmpeg;
 mod song;
 mod source;
