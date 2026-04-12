@@ -1,0 +1,14 @@
+# scrolling-compilation-maker configuration
+# Place this file next to the binary as config.toml.
+
+# API base URL
+api_url = "https://alexandria.soundchaser128.com"
+
+# Content CDN base URL
+content_url = "https://content.r2.soundchaser128.com"
+
+# Use GPU-accelerated encoding (NVIDIA NVENC / macOS VideoToolbox)
+gpu = false
+
+# Enable logging (uncomment and set level: trace, debug, info, warn, error)
+# log = "info"
