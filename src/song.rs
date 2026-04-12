@@ -1,5 +1,6 @@
 use std::{
     path::{Path, PathBuf},
+    process::Command,
     process::Stdio,
     time::Duration,
 };
@@ -7,12 +8,11 @@ use std::{
 use color_eyre::Result;
 use color_eyre::eyre::bail;
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio::process::Command;
 use tracing::info;
 
 /// Download audio from a URL using yt-dlp, returning the path to the downloaded file.
-pub async fn download_song(url: &str, dest_dir: &Path) -> Result<PathBuf> {
-    check_yt_dlp().await?;
+pub fn download_song(url: &str, dest_dir: &Path) -> Result<PathBuf> {
+    check_yt_dlp()?;
 
     let output_template = dest_dir.join("song.%(ext)s");
     let spinner = if crate::progress_hidden() {
@@ -34,8 +34,7 @@ pub async fn download_song(url: &str, dest_dir: &Path) -> Result<PathBuf> {
         .arg(url)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
-        .await?;
+        .status()?;
 
     spinner.finish_and_clear();
 
@@ -56,7 +55,7 @@ pub async fn download_song(url: &str, dest_dir: &Path) -> Result<PathBuf> {
 }
 
 /// Get the duration of an audio file using ffprobe.
-pub async fn probe_duration(path: &std::path::Path) -> Result<Duration> {
+pub fn probe_duration(path: &std::path::Path) -> Result<Duration> {
     let output = Command::new("ffprobe")
         .arg("-v")
         .arg("quiet")
@@ -65,8 +64,7 @@ pub async fn probe_duration(path: &std::path::Path) -> Result<Duration> {
         .arg("-of")
         .arg("default=noprint_wrappers=1:nokey=1")
         .arg(path)
-        .output()
-        .await?;
+        .output()?;
 
     if !output.status.success() {
         bail!("ffprobe failed on {}", path.display());
@@ -83,14 +81,12 @@ pub async fn probe_duration(path: &std::path::Path) -> Result<Duration> {
     Ok(Duration::from_secs_f64(secs))
 }
 
-async fn check_yt_dlp() -> Result<()> {
+fn check_yt_dlp() -> Result<()> {
     let output = Command::new("yt-dlp")
         .arg("--version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
-        .await;
-
+        .status();
     match output {
         Ok(status) if status.success() => Ok(()),
         _ => bail!("yt-dlp not found. Please install yt-dlp and ensure it's in your PATH."),

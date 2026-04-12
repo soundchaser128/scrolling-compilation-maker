@@ -1,14 +1,17 @@
-use std::{fmt, path::Path, process::Stdio, sync::LazyLock, time::Duration};
+use std::{
+    fmt,
+    io::{BufRead, BufReader, Read},
+    path::Path,
+    process::{Command, Stdio},
+    sync::LazyLock,
+    time::Duration,
+};
 
 use clap::ValueEnum;
 use color_eyre::Result;
 use color_eyre::eyre::bail;
 use indicatif::{FormattedDuration, ProgressBar, ProgressState, ProgressStyle};
 use regex::Regex;
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
-    process::Command,
-};
 use tracing::{debug, info};
 
 use crate::types::{ClipInfo, EncodingArgs, ScrollEasing};
@@ -62,7 +65,7 @@ pub struct VideoParams<'a> {
     pub easing: ScrollEasing,
 }
 
-pub async fn create_scrolling_video(
+pub fn create_scrolling_video(
     VideoParams {
         clips,
         output,
@@ -149,8 +152,10 @@ pub async fn create_scrolling_video(
 
     let mut last_position = 0;
     let progress = ffmpeg_progress_bar((duration_secs * 1000) as u64);
-    let mut lines = reader.lines();
-    while let Some(line) = lines.next_line().await? {
+    // let mut lines = reader.lines();
+    // while let Some(line) = lines.next_line().await? {
+    for line in reader.lines() {
+        let line = line?;
         debug!("{}", line);
         if let Some(captures) = OUT_TIME_REGEX.captures(&line) {
             let duration: u64 = captures.get(1).unwrap().as_str().parse::<u64>()?;
@@ -162,12 +167,12 @@ pub async fn create_scrolling_video(
         }
     }
     progress.finish_and_clear();
-    let exit_code = process.wait().await?;
+    let exit_code = process.wait()?;
     if !exit_code.success() {
         let reader = process.stderr.take().unwrap();
         let mut reader = BufReader::new(reader);
         let mut stderr = String::new();
-        reader.read_to_string(&mut stderr).await?;
+        reader.read_to_string(&mut stderr)?;
         bail!("ffmpeg failed with error code {exit_code}:\n{stderr}");
     }
 
@@ -258,13 +263,12 @@ fn escape_drawtext(text: &str) -> String {
         .replace('\'', "'\\\\\\''")
 }
 
-pub async fn check_ffmpeg() -> Result<()> {
+pub fn check_ffmpeg() -> Result<()> {
     let output = Command::new("ffmpeg")
         .arg("-version")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .status()
-        .await;
+        .status();
 
     match output {
         Ok(status) if status.success() => Ok(()),

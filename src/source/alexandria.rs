@@ -1,6 +1,6 @@
 use color_eyre::Result;
 use color_eyre::eyre::bail;
-use reqwest::{Client, Url};
+use reqwest::{Url, blocking::Client};
 use tracing::{info, warn};
 
 use crate::{
@@ -14,14 +14,14 @@ pub struct AlexandriaMediaSource {
 }
 
 impl AlexandriaMediaSource {
-    async fn media_reachable(&self, file: &MediaFile, base_url: &str) -> Result<bool> {
-        let response = self.client.head(file.content_url(base_url)).send().await?;
+    fn media_reachable(&self, file: &MediaFile, base_url: &str) -> Result<bool> {
+        let response = self.client.head(file.content_url(base_url)).send()?;
         Ok(response.status().is_success())
     }
 }
 
 impl MediaSource for AlexandriaMediaSource {
-    async fn fetch(
+    fn fetch(
         &self,
         FetchVideosParams {
             api_url,
@@ -41,6 +41,7 @@ impl MediaSource for AlexandriaMediaSource {
 
         loop {
             let page_str = page.to_string();
+            assert!(api_url.len() > 0, "API URL {} must not be empty", api_url);
             let mut url = Url::parse(api_url).unwrap();
             url.set_path("/api/file");
             let mut query = vec![
@@ -69,16 +70,16 @@ impl MediaSource for AlexandriaMediaSource {
                 url.query_pairs_mut().append_pair(k, v);
             }
             let request = self.client.get(url);
-            let response = request.send().await?;
+            let response = request.send()?;
             if !response.status().is_success() {
                 bail!(
                     "API request failed with status {}: {}",
                     response.status(),
-                    response.text().await.unwrap_or_default()
+                    response.text().unwrap_or_default()
                 );
             }
 
-            let page_response: PageResponse<MediaFile> = response.json().await?;
+            let page_response: PageResponse<MediaFile> = response.json()?;
             let total_pages = page_response.page.total_pages;
 
             for media_item in page_response.content {
@@ -95,7 +96,6 @@ impl MediaSource for AlexandriaMediaSource {
 
                 if !self
                     .media_reachable(&media_item, content_url)
-                    .await
                     .unwrap_or(false)
                 {
                     continue;

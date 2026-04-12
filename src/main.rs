@@ -42,8 +42,7 @@ fn setup_logging(log: Option<tracing::level_filters::LevelFilter>) -> Result<()>
     Ok(())
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     color_eyre::install()?;
 
     let config = Config::load()?;
@@ -69,7 +68,7 @@ async fn main() -> Result<()> {
     info!("Using seed: {seed}");
     info!("Output file: {output}");
 
-    ffmpeg::check_ffmpeg().await?;
+    ffmpeg::check_ffmpeg()?;
 
     let temp_dir = tempfile::tempdir()?;
 
@@ -77,8 +76,8 @@ async fn main() -> Result<()> {
     let mut duration = params.duration;
     let audio_path = match &params.song {
         Some(url) => {
-            let path = song::download_song(url, temp_dir.path()).await?;
-            let song_duration = song::probe_duration(&path).await?;
+            let path = song::download_song(url, temp_dir.path())?;
+            let song_duration = song::probe_duration(&path)?;
             info!("Song duration: {:.1}s", song_duration.as_secs_f64());
             duration = song_duration;
             Some(path)
@@ -89,19 +88,17 @@ async fn main() -> Result<()> {
     // 1. Fetch video metadata
     info!("Fetching video metadata...");
     let source = AlexandriaMediaSource::default();
-    let videos = source
-        .fetch(FetchVideosParams {
-            api_url: &params.api_url,
-            content_url: &params.content_url,
-            max_clip_duration: params.max_clip_duration,
-            desired_count: params.clip_count,
-            seed,
-            orientation: params.orientation,
-            tags: &params.tags,
-            people: &params.people,
-            with_images: params.with_images,
-        })
-        .await?;
+    let videos = source.fetch(FetchVideosParams {
+        api_url: &params.api_url,
+        content_url: &params.content_url,
+        max_clip_duration: params.max_clip_duration,
+        desired_count: params.clip_count,
+        seed,
+        orientation: params.orientation,
+        tags: &params.tags,
+        people: &params.people,
+        with_images: params.with_images,
+    })?;
     info!("Selected {} clips or images", videos.len());
     let paths: Vec<_> = videos
         .iter()
@@ -152,8 +149,7 @@ async fn main() -> Result<()> {
         text: params.text,
         audio_path: audio_path.as_deref(),
         easing: params.easing,
-    })
-    .await?;
+    })?;
 
     println!("Compilation generated to {output}");
 

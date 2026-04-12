@@ -34,11 +34,9 @@ pub fn prompt(config: Config) -> Result<RunParams> {
 
     let duration_str = Text::new("Duration (e.g. 60, 1m, 1m30s):")
         .with_default("1m")
-        .with_validator(|input: &str| {
-            match parse_duration(input) {
-                Ok(_) => Ok(inquire::validator::Validation::Valid),
-                Err(e) => Ok(inquire::validator::Validation::Invalid(e.into())),
-            }
+        .with_validator(|input: &str| match parse_duration(input) {
+            Ok(_) => Ok(inquire::validator::Validation::Valid),
+            Err(e) => Ok(inquire::validator::Validation::Invalid(e.into())),
         })
         .prompt()?;
     let duration = parse_duration(&duration_str).unwrap();
@@ -55,12 +53,9 @@ pub fn prompt(config: Config) -> Result<RunParams> {
     .with_starting_cursor(0)
     .prompt()?;
 
-    let codec = Select::new(
-        "Codec:",
-        vec![Codec::X264, Codec::Hevc, Codec::Av1],
-    )
-    .with_starting_cursor(0)
-    .prompt()?;
+    let codec = Select::new("Codec:", vec![Codec::X264, Codec::Hevc, Codec::Av1])
+        .with_starting_cursor(0)
+        .prompt()?;
 
     let quality = Select::new(
         "Quality:",

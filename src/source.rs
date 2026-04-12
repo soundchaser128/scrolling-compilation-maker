@@ -19,5 +19,5 @@ pub struct FetchVideosParams<'a> {
 }
 
 pub trait MediaSource: Default {
-    async fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<MediaFile>>;
+    fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<MediaFile>>;
 }
