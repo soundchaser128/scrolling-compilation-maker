@@ -73,10 +73,6 @@ pub struct Args {
     #[arg(long, default_value = "https://content.r2.soundchaser128.com")]
     pub content_url: String,
 
-    /// Number of concurrent downloads
-    #[arg(long, default_value_t = 4)]
-    pub download_concurrency: usize,
-
     /// Output codec
     #[arg(long, value_enum, default_value_t = Codec::X264)]
     pub codec: Codec,

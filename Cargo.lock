@@ -2145,6 +2145,7 @@ dependencies = [
  "nu-ansi-term",
  "once_cell",
  "regex-automata",
+ "serde",
  "sharded-slab",
  "smallvec",
  "thread_local",
