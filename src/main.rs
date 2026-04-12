@@ -1,6 +1,8 @@
 mod cli;
 mod config;
+mod interactive;
 mod ffmpeg;
+mod run_params;
 mod song;
 mod source;
 mod types;
