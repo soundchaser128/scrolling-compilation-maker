@@ -69,6 +69,7 @@ async fn main() -> Result<()> {
     let videos = source
         .fetch(FetchVideosParams {
             api_url: &args.api_url,
+            content_url: &args.content_url,
             max_clip_duration: args.max_clip_duration,
             desired_count: args.clip_count,
             seed,
