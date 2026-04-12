@@ -87,10 +87,8 @@ fn main() -> Result<()> {
 
     // 1. Fetch video metadata
     info!("Fetching video metadata...");
-    let source = AlexandriaMediaSource::default();
+    let source = AlexandriaMediaSource::new(params.api_url.clone(), params.content_url.clone());
     let videos = source.fetch(FetchVideosParams {
-        api_url: &params.api_url,
-        content_url: &params.content_url,
         max_clip_duration: params.max_clip_duration,
         desired_count: params.clip_count,
         seed,

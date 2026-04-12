@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use color_eyre::Result;
 use color_eyre::eyre::bail;
 use reqwest::{Url, blocking::Client};
+use serde::Deserialize;
 use tracing::{info, warn};
 
 use crate::{
@@ -8,12 +11,22 @@ use crate::{
     types::{MediaFile, PageResponse},
 };
 
-#[derive(Default)]
+#[derive(Clone)]
 pub struct AlexandriaMediaSource {
+    api_url: Arc<String>,
+    content_url: Arc<String>,
     client: Client,
 }
 
 impl AlexandriaMediaSource {
+    pub fn new(api_url: String, content_url: String) -> Self {
+        AlexandriaMediaSource {
+            api_url: Arc::new(api_url),
+            content_url: Arc::new(content_url),
+            client: Client::new(),
+        }
+    }
+
     fn media_reachable(&self, file: &MediaFile, base_url: &str) -> Result<bool> {
         let response = self.client.head(file.content_url(base_url)).send()?;
         Ok(response.status().is_success())
@@ -24,8 +37,6 @@ impl MediaSource for AlexandriaMediaSource {
     fn fetch(
         &self,
         FetchVideosParams {
-            api_url,
-            content_url,
             max_clip_duration,
             desired_count,
             seed,
@@ -41,8 +52,12 @@ impl MediaSource for AlexandriaMediaSource {
 
         loop {
             let page_str = page.to_string();
-            assert!(api_url.len() > 0, "API URL {} must not be empty", api_url);
-            let mut url = Url::parse(api_url).unwrap();
+            assert!(
+                self.api_url.len() > 0,
+                "API URL '{}' must not be empty",
+                self.api_url
+            );
+            let mut url = Url::parse(&self.api_url).unwrap();
             url.set_path("/api/file");
             let mut query = vec![
                 ("sort", "random"),
@@ -95,7 +110,7 @@ impl MediaSource for AlexandriaMediaSource {
                 }
 
                 if !self
-                    .media_reachable(&media_item, content_url)
+                    .media_reachable(&media_item, &self.content_url)
                     .unwrap_or(false)
                 {
                     continue;
@@ -124,4 +139,23 @@ impl MediaSource for AlexandriaMediaSource {
         );
         Ok(media)
     }
+
+    fn fetch_people(&self, prefix: Option<&str>) -> Result<Vec<String>> {
+        let mut url = Url::parse(&format!("{}/api/people/autocomplete", self.api_url))?;
+        if let Some(prefix) = prefix {
+            url.query_pairs_mut().append_pair("query", prefix);
+        }
+        let people: Vec<PersonResponse> = self.client.get(url).send()?.json()?;
+        Ok(people.into_iter().map(|p| p.name).collect())
+    }
+
+    fn fetch_tags(&self, prefix: Option<&str>) -> Result<Vec<String>> {
+        todo!()
+    }
+}
+
+#[derive(Deserialize)]
+struct PersonResponse {
+    id: i64,
+    name: String,
 }

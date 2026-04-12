@@ -7,8 +7,6 @@ pub mod alexandria;
 pub mod stash;
 
 pub struct FetchVideosParams<'a> {
-    pub api_url: &'a str,
-    pub content_url: &'a str,
     pub max_clip_duration: Duration,
     pub desired_count: usize,
     pub seed: f64,
@@ -18,6 +16,10 @@ pub struct FetchVideosParams<'a> {
     pub with_images: bool,
 }
 
-pub trait MediaSource: Default {
+pub trait MediaSource {
     fn fetch(&self, params: FetchVideosParams<'_>) -> Result<Vec<MediaFile>>;
+
+    fn fetch_people(&self, prefix: Option<&str>) -> Result<Vec<String>>;
+
+    fn fetch_tags(&self, prefix: Option<&str>) -> Result<Vec<String>>;
 }

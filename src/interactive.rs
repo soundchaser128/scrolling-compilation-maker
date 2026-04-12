@@ -1,13 +1,34 @@
 use std::time::Duration;
 
 use color_eyre::Result;
-use inquire::{Confirm, CustomType, Select, Text};
+use inquire::{Autocomplete, Confirm, CustomType, Select, Text, autocompletion::Replacement};
 
 use crate::{
     config::Config,
     run_params::RunParams,
+    source::{MediaSource, alexandria::AlexandriaMediaSource},
     types::{AspectRatio, Codec, Effort, Orientation, Quality, ScrollEasing, parse_duration},
 };
+
+#[derive(Clone)]
+pub struct PeopleAutocomplete {
+    client: AlexandriaMediaSource,
+}
+
+impl Autocomplete for PeopleAutocomplete {
+    fn get_suggestions(&mut self, input: &str) -> Result<Vec<String>, inquire::CustomUserError> {
+        let result = self.client.fetch_people(Some(input))?;
+        Ok(result)
+    }
+
+    fn get_completion(
+        &mut self,
+        input: &str,
+        highlighted_suggestion: Option<String>,
+    ) -> Result<Replacement, inquire::CustomUserError> {
+        Ok(Replacement::None)
+    }
+}
 
 fn parse_comma_list(input: &str) -> Vec<String> {
     input
@@ -24,6 +45,9 @@ pub fn prompt(config: Config) -> Result<RunParams> {
     let tags = parse_comma_list(&tags_input);
 
     let people_input = Text::new("People/performers (comma-separated, or empty):")
+        .with_autocomplete(PeopleAutocomplete {
+            client: AlexandriaMediaSource::new(config.api_url.clone(), config.content_url.clone()),
+        })
         .with_default("")
         .prompt()?;
     let people = parse_comma_list(&people_input);
