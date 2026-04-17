@@ -150,12 +150,23 @@ impl MediaSource for AlexandriaMediaSource {
     }
 
     fn fetch_tags(&self, prefix: Option<&str>) -> Result<Vec<String>> {
-        todo!()
+        let mut url = Url::parse(&format!("{}/api/tag", self.api_url))?;
+        if let Some(prefix) = prefix {
+            url.query_pairs_mut().append_pair("query", prefix);
+        }
+        let tags: Vec<TagCompletion> = self.client.get(url).send()?.json()?;
+        Ok(tags.into_iter().map(|p| p.name).collect())
     }
 }
 
 #[derive(Deserialize)]
 struct PersonResponse {
-    id: i64,
     name: String,
+}
+
+#[derive(Deserialize)]
+struct TagCompletion {
+    name: String,
+    category: Option<String>,
+    count: i64,
 }

@@ -11,6 +11,26 @@ use crate::{
 };
 
 #[derive(Clone)]
+pub struct TagAutocomplete {
+    client: AlexandriaMediaSource,
+}
+
+impl Autocomplete for TagAutocomplete {
+    fn get_suggestions(&mut self, input: &str) -> Result<Vec<String>, inquire::CustomUserError> {
+        let tags = self.client.fetch_tags(Some(input))?;
+        Ok(tags)
+    }
+
+    fn get_completion(
+        &mut self,
+        _input: &str,
+        _highlighted_suggestion: Option<String>,
+    ) -> Result<Replacement, inquire::CustomUserError> {
+        todo!()
+    }
+}
+
+#[derive(Clone)]
 pub struct PeopleAutocomplete {
     client: AlexandriaMediaSource,
 }
@@ -23,8 +43,8 @@ impl Autocomplete for PeopleAutocomplete {
 
     fn get_completion(
         &mut self,
-        input: &str,
-        highlighted_suggestion: Option<String>,
+        _input: &str,
+        _highlighted_suggestion: Option<String>,
     ) -> Result<Replacement, inquire::CustomUserError> {
         Ok(Replacement::None)
     }
@@ -39,15 +59,17 @@ fn parse_comma_list(input: &str) -> Vec<String> {
 }
 
 pub fn prompt(config: Config) -> Result<RunParams> {
+    let client = AlexandriaMediaSource::new(config.api_url.clone(), config.content_url.clone());
     let tags_input = Text::new("Tags (comma-separated, or empty):")
+        .with_autocomplete(TagAutocomplete {
+            client: client.clone(),
+        })
         .with_default("")
         .prompt()?;
     let tags = parse_comma_list(&tags_input);
 
     let people_input = Text::new("People/performers (comma-separated, or empty):")
-        .with_autocomplete(PeopleAutocomplete {
-            client: AlexandriaMediaSource::new(config.api_url.clone(), config.content_url.clone()),
-        })
+        .with_autocomplete(PeopleAutocomplete { client })
         .with_default("")
         .prompt()?;
     let people = parse_comma_list(&people_input);
