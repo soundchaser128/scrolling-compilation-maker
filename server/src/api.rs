@@ -21,6 +21,8 @@ use crate::{
 pub struct ClipCandidate {
     pub id: Uuid,
     pub content_url: String,
+    pub title: Option<String>,
+    pub alexandria_url: String,
     pub file_type: String,
     pub mime_type: String,
     pub width: i32,
@@ -28,13 +30,15 @@ pub struct ClipCandidate {
     pub duration_ms: u64,
     pub tags: Vec<String>,
     pub performers: Vec<String>,
-    pub popularity: f32,
+    pub popularity: f64,
 }
 
 fn candidate(m: &MediaFile, content_base: &str) -> ClipCandidate {
     ClipCandidate {
         id: m.id,
         content_url: m.content_url(content_base),
+        title: m.title.clone(),
+        alexandria_url: m.alexandria_url(),
         file_type: match m.file_type {
             FileType::Image => "image".into(),
             _ => "video".into(),
@@ -143,6 +147,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/render", post(start_render))
         .route("/api/render/{id}", get(render_status))
         .route("/api/output/{id}", get(download_output))
+        .route("/api/summary/{id}", get(download_summary))
         .route("/api/thumb", get(thumbnail))
         .layer(TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
             tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
@@ -167,6 +172,10 @@ use crate::{
 pub struct ClipSelection {
     pub id: Uuid,
     pub content_url: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub alexandria_url: String,
     #[serde(default = "default_video")]
     pub file_type: String, // "video" | "image"
     pub mime_type: String,
@@ -302,6 +311,11 @@ async fn run_render(
         })
         .await?;
 
+        tokio::fs::write(
+            state.config.output_dir.join(format!("{id}.md")),
+            markdown_summary(&req.clips),
+        )
+        .await?;
         Ok(output)
     }
     .await;
@@ -435,6 +449,86 @@ async fn download_output(
             ),
         ],
         body,
+    ))
+}
+
+fn markdown_summary(clips: &[ClipSelection]) -> String {
+    fn escape(value: &str) -> String {
+        value
+            .chars()
+            .flat_map(|c| match c {
+                '\n' | '\r' => " ".to_string().chars().collect::<Vec<_>>(),
+                '\\' | '*' | '_' | '[' | ']' | '`' | '<' | '>' | '#' => vec!['\\', c],
+                _ => vec![c],
+            })
+            .collect()
+    }
+    let mut summary = String::from("## Clips\n\n");
+    for (i, clip) in clips.iter().enumerate() {
+        let people = if clip.performers.is_empty() {
+            "Unknown performer".into()
+        } else {
+            clip.performers
+                .iter()
+                .map(|p| escape(p))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let title = clip
+            .title
+            .as_deref()
+            .filter(|t| !t.trim().is_empty())
+            .unwrap_or("Untitled");
+        let mut chars = title.chars();
+        let truncated: String = chars.by_ref().take(100).collect();
+        let title = if chars.next().is_some() {
+            format!("{}…", truncated.trim_end())
+        } else {
+            truncated
+        };
+        let url = clip
+            .alexandria_url
+            .replace('>', "%3E")
+            .replace('<', "%3C")
+            .replace(' ', "%20")
+            .replace('\n', "")
+            .replace('\r', "");
+        if url.is_empty() {
+            summary.push_str(&format!("{}. {} — {}\n", i + 1, escape(&title), people));
+        } else {
+            summary.push_str(&format!(
+                "{}. [{}](<{}>) — {}\n",
+                i + 1,
+                escape(&title),
+                url,
+                people
+            ));
+        }
+    }
+    summary
+}
+
+async fn download_summary(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<impl IntoResponse> {
+    let path = state.config.output_dir.join(format!("{id}.md"));
+    if !path.exists() {
+        return Err(crate::error::ApiError::NotFound("summary not found".into()));
+    }
+    let bytes = tokio::fs::read(path).await?;
+    Ok((
+        [
+            (
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/markdown; charset=utf-8"),
+            ),
+            (
+                header::CONTENT_DISPOSITION,
+                HeaderValue::from_str(&format!("attachment; filename=\"{id}.md\"")).unwrap(),
+            ),
+        ],
+        bytes,
     ))
 }
 

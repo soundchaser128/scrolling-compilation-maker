@@ -1,6 +1,8 @@
 export interface ClipCandidate {
   id: string;
   content_url: string;
+  title: string | null;
+  alexandria_url: string;
   file_type: 'video' | 'image';
   mime_type: string;
   width: number;
@@ -20,6 +22,8 @@ export type Easing = 'linear' | 'ease';
 export interface ClipSelection {
   id: string;
   content_url: string;
+  title: string | null;
+  alexandria_url: string;
   file_type: 'video' | 'image';
   mime_type: string;
   width: number;

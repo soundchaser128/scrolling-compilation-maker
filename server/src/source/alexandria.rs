@@ -190,7 +190,7 @@ impl MediaSource for AlexandriaMediaSource {
             url.query_pairs_mut().append_pair("query", prefix);
         }
         let tags: Vec<TagCompletion> = self.client.get(url).send().await?.json().await?;
-        Ok(tags.into_iter().map(|t| t.name).collect())
+        Ok(tags.into_iter().map(|t| t.full_name()).collect())
     }
 }
 
@@ -204,6 +204,16 @@ struct TagCompletion {
     name: String,
     category: Option<String>,
     count: i64,
+}
+
+impl TagCompletion {
+    fn full_name(&self) -> String {
+        if let Some(category) = &self.category {
+            format!("{}:{}", category, self.name)
+        } else {
+            self.name.clone()
+        }
+    }
 }
 
 #[cfg(test)]

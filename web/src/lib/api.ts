@@ -21,5 +21,6 @@ export const api = {
     req<{ id: string }>('/api/render', { method: 'POST', body: JSON.stringify(body) }),
   status: (id: string) => req<RenderStatus>(`/api/render/${id}`),
   outputUrl: (id: string) => `/api/output/${id}`,
+  summaryUrl: (id: string) => `/api/summary/${id}`,
   thumbUrl: (url: string, t = 1) => `/api/thumb?url=${encodeURIComponent(url)}&t=${t}`
 };

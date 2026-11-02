@@ -120,14 +120,18 @@ pub enum FileType {
 pub struct MediaFile {
     pub id: Uuid,
     pub file_type: FileType,
+    pub seq_id: u64,
+    pub slug: String,
     pub width: Option<i32>,
     pub height: Option<i32>,
     pub duration: Option<u64>,
     pub mime_type: String,
+    pub title: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
     #[serde(default)]
     pub people: Vec<Person>,
-    pub popularity: f32,
-    pub tags: Vec<String>,
+    pub popularity: f64,
 }
 
 #[derive(Deserialize, Debug)]
@@ -145,6 +149,13 @@ impl MediaFile {
         let first_char = &id[0..1];
         let ext = extension_for_mime(&self.mime_type);
         format!("{base_url}/{first_char}/{id}{ext}")
+    }
+
+    pub fn alexandria_url(&self) -> String {
+        format!(
+            "https://alexandria.soundchaser128.com/library/file/{}/{}?ref=share",
+            self.seq_id, self.slug
+        )
     }
 }
 

@@ -45,6 +45,8 @@
           class="btn mt-4 self-start btn-neutral"
           href={api.outputUrl(id)}
           download>Download compilation ↓</a
+        ><a class="btn self-start btn-neutral" href={api.summaryUrl(id)} download
+          >Download Markdown summary ↓</a
         >{/if}
     </div>
   </section>

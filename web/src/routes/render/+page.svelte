@@ -23,6 +23,8 @@
     const selections: ClipSelection[] = chosen.map((c) => ({
       id: c.id,
       content_url: c.content_url,
+      title: c.title,
+      alexandria_url: c.alexandria_url,
       file_type: c.file_type,
       mime_type: c.mime_type,
       width: c.width,

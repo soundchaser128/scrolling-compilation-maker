@@ -30,10 +30,10 @@
   <div class="mb-6 alert alert-error" role="alert">{error}</div>
 {/if}
 
-{#if loading}
-  <div class="mb-6 flex items-center gap-3 text-sm">
-    <span class="loading loading-sm loading-spinner"></span> Working on it…
-  </div>
-{/if}
+<div class="mb-6 h-5 text-sm" role="status">
+  {#if loading}
+    <span class="loading loading-sm loading-spinner align-middle"></span> Working on it…
+  {/if}
+</div>
 
 <FilterForm {onGenerate} />
