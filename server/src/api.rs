@@ -1,4 +1,4 @@
-use std::{process::Stdio, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     Json, Router,
@@ -260,7 +260,7 @@ async fn run_render(
             let output_w = crop_width.map(|cw| scaled_w.min(cw)).unwrap_or(scaled_w);
 
             let path = if !is_image && sel.end_ms > sel.start_ms {
-                let seg = job_dir.join(format!("seg-{i}.mp4"));
+                let seg = job_dir.join(format!("seg-{i}.mkv"));
                 ffmpeg::trim_clip(&sel.content_url, sel.start_ms, sel.end_ms, &seg).await?;
                 seg.to_string_lossy().into_owned()
             } else {

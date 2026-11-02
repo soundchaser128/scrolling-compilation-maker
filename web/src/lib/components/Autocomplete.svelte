@@ -118,7 +118,7 @@
         role="listbox"
         class="menu absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg"
       >
-        {#each suggestions as suggestion, index}
+        {#each suggestions as suggestion, index (`${suggestion}_${index}`)}
           <li role="presentation">
             <button
               id={`${id}-option-${index}`}
@@ -135,12 +135,15 @@
     {/if}
   </div>
   <div class="flex flex-wrap gap-1">
-    {#each items as item}<span class="badge badge-outline"
-        >{item}<button
+    {#each items as item (item)}
+      <span class="badge badge-outline"
+        >{item}
+        <button
           type="button"
           aria-label={`Remove ${item}`}
           onclick={() => (items = items.filter((entry) => entry !== item))}>×</button
         ></span
-      >{/each}
+      >
+    {/each}
   </div>
 </div>

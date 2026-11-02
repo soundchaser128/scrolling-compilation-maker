@@ -26,13 +26,6 @@
 <div>
   <section class="card bg-base-100 shadow-sm card-border">
     <div class="card-body p-6 sm:p-8">
-      <div class="mb-5 flex items-start justify-between gap-4">
-        <div>
-          <div class="eyebrow">01 / DISCOVER</div>
-          <h2 class="mt-2 text-2xl font-bold">Set the scene</h2>
-        </div>
-        <span class="section-icon" aria-hidden="true">⌁</span>
-      </div>
       <div class="grid gap-x-6 gap-y-5 md:grid-cols-2">
         <Autocomplete
           label="Tags"

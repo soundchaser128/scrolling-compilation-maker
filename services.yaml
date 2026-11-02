@@ -1,0 +1,7 @@
+procs:
+  backend:
+    cmd: ["cargo", "run", "--release"]
+    cwd: "server"
+  frontend:
+    cmd: ["npm", "run", "dev"]
+    cwd: "web"

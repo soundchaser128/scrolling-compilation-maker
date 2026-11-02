@@ -113,7 +113,7 @@ pub fn check_ffmpeg() -> Result<()> {
 pub async fn trim_clip(url: &str, start_ms: u64, end_ms: u64, out: &Path) -> Result<()> {
     let start = format!("{:.3}", start_ms as f64 / 1000.0);
     let end = format!("{:.3}", end_ms as f64 / 1000.0);
-    let status = tokio::process::Command::new("ffmpeg")
+    let output = tokio::process::Command::new("ffmpeg")
         .arg("-ss")
         .arg(&start)
         .arg("-to")
@@ -126,12 +126,11 @@ pub async fn trim_clip(url: &str, start_ms: u64, end_ms: u64, out: &Path) -> Res
         .arg("make_zero")
         .arg("-y")
         .arg(out)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .status()
+        .output()
         .await?;
-    if !status.success() {
-        bail!("ffmpeg trim failed for {url}");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy_owned(output.stderr);
+        bail!("ffmpeg trim failed for {url}.\nerror output: {stderr}");
     }
     Ok(())
 }

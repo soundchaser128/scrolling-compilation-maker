@@ -11,7 +11,7 @@
     <div class="mb-10 flex flex-col justify-between gap-7 md:flex-row md:items-end">
       <div>
         <h1 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
-          {step === 1 ? 'Find your clips.' : step === 2 ? 'Build your lineup.' : 'Make it move.'}
+          {step === 1 ? 'Find clips' : step === 2 ? 'Pick clips' : 'Build compilation'}
         </h1>
       </div>
       <div class="stage-count">
