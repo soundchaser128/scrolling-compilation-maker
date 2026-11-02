@@ -1,15 +1,15 @@
 <script lang="ts">
-  import type { Codec, Effort, Easing, Quality } from '#lib/types.js';
+  import type { Codec, Effort, Quality } from '#lib/types.js';
+
+  import TimingSettings from './TimingSettings.svelte';
+  import { workflow } from '#lib/workflow.svelte.js';
 
   let codec = $state<Codec>('x264');
   let quality = $state<Quality>('medium');
   let effort = $state<Effort>('medium');
-  let easing = $state<Easing>('linear');
   let gpu = $state(false);
   let text = $state<'performers' | 'tags' | 'none'>('none');
-  let crop = $state('');
   let song = $state('');
-  let duration = $state(60);
 
   let { onRender }: { onRender: (o: Record<string, unknown>) => void } = $props();
 
@@ -18,14 +18,11 @@
       codec,
       quality,
       effort,
-      easing,
+      ...workflow.timing,
       gpu,
       text: text === 'none' ? null : text,
-      crop: crop || null,
-      song: song || null,
-      duration_secs: duration,
-      viewport_width: 1080,
-      viewport_height: 1920
+      crop: workflow.timing.crop || null,
+      song: song || null
     });
   }
 </script>
@@ -34,15 +31,8 @@
   <div class="card-body p-6 sm:p-8">
     <div class="eyebrow">03 / RENDER</div>
     <h2 class="text-2xl font-bold">Output settings</h2>
+    <TimingSettings />
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      <label class="field"
-        ><span>Duration</span>
-        <div class="input w-full">
-          <input type="number" bind:value={duration} min="5" max="120" /><span
-            class="text-xs text-base-content/50">seconds</span
-          >
-        </div></label
-      >
       <label class="field"
         ><span>Codec</span><select class="select w-full" bind:value={codec}
           ><option value="x264">H.264</option><option value="hevc">HEVC</option><option value="av1"
@@ -65,23 +55,11 @@
         ></label
       >
       <label class="field"
-        ><span>Movement</span><select class="select w-full" bind:value={easing}
-          ><option value="linear">Linear</option><option value="ease">Ease</option></select
-        ></label
-      >
-      <label class="field"
         ><span>Overlay text</span><select class="select w-full" bind:value={text}
           ><option value="none">None</option><option value="performers">Performers</option><option
             value="tags">Tags</option
           ></select
         ></label
-      >
-      <label class="field"
-        ><span>Crop aspect</span><input
-          class="input w-full"
-          bind:value={crop}
-          placeholder="Optional, e.g. 9:16"
-        /></label
       >
       <label class="field"
         ><span>Song URL</span><input
@@ -97,8 +75,14 @@
       >
     </div>
     <div class="mt-7 border-t border-base-300 pt-6">
-      <button class="btn btn-neutral" onclick={submit}
-        >Render compilation <span aria-hidden="true">→</span></button
+      <button
+        class="btn btn-neutral"
+        onclick={submit}
+        disabled={!(
+          workflow.timing.duration_secs >= 1 &&
+          workflow.timing.duration_secs <= 120 &&
+          Number.isInteger(workflow.timing.duration_secs)
+        )}>Render compilation <span aria-hidden="true">→</span></button
       >
     </div>
   </div>

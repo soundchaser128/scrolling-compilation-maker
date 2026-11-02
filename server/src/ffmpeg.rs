@@ -17,6 +17,31 @@ pub enum Text {
     Tags,
 }
 
+/// Invert the same blended smoothstep used by the scrolling crop.
+fn time_at_offset(offset: f64, max_offset: u32, duration: u32, easing: ScrollEasing) -> f64 {
+    if max_offset == 0 {
+        return 0.0;
+    }
+    let target = (offset / max_offset as f64).clamp(0.0, 1.0);
+    let progress = match easing {
+        ScrollEasing::Linear => target,
+        ScrollEasing::Ease => {
+            let (mut low, mut high) = (0.0, 1.0);
+            for _ in 0..50 {
+                let mid = (low + high) / 2.0;
+                let value = 0.3 * mid + 0.7 * mid * mid * (3.0 - 2.0 * mid);
+                if value < target {
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+            }
+            (low + high) / 2.0
+        }
+    };
+    progress * duration as f64
+}
+
 fn build_filter_graph(
     clips: &[ClipInfo],
     viewport_width: u32,
@@ -31,12 +56,25 @@ fn build_filter_graph(
 
     // Scale each input to the target height, optionally crop to aspect ratio,
     // with optional performer name overlay
+    let mut left = 0u32;
     for (i, clip) in clips.iter().enumerate() {
         let mut chain = format!(
             "[{i}:v]fps=30,scale={w}:{h},setpts=PTS-STARTPTS",
             w = clip.scaled_width,
             h = viewport_height,
         );
+        // Hold the first frame until entrance, so the selected source start is
+        // the first frame seen instead of an arbitrary phase of a looping input.
+        let enter = time_at_offset(
+            left as f64 - viewport_width as f64,
+            max_offset,
+            duration_secs,
+            easing,
+        );
+        if enter > 0.0 && !clip.is_image {
+            chain.push_str(&format!(",tpad=start_mode=clone:start_duration={enter:.6}"));
+        }
+        left += clip.output_width;
         // Center-crop wider clips to the target aspect ratio
         if clip.output_width < clip.scaled_width {
             let cw = clip.output_width;
@@ -149,13 +187,13 @@ pub struct RenderParams {
     pub progress: Arc<AtomicU64>,
 }
 #[tracing::instrument(
-    skip_all, 
+    skip_all,
     fields(
-        clip_count = params.clips.len(), 
-        duration_secs = params.duration_secs, 
-        width = params.viewport_width, 
+        clip_count = params.clips.len(),
+        duration_secs = params.duration_secs,
+        width = params.viewport_width,
         height = params.viewport_height
-    ), 
+    ),
     err
 )]
 pub async fn render(params: RenderParams) -> Result<()> {
@@ -259,6 +297,37 @@ pub async fn render(params: RenderParams) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn entrance_time_matches_scroll_position() {
+        assert_eq!(time_at_offset(-100.0, 400, 60, ScrollEasing::Linear), 0.0);
+        assert_eq!(time_at_offset(200.0, 400, 60, ScrollEasing::Linear), 30.0);
+        assert_eq!(time_at_offset(500.0, 400, 60, ScrollEasing::Linear), 60.0);
+        for fraction in [0.1, 0.25, 0.5, 0.8] {
+            let t = time_at_offset(fraction * 400.0, 400, 60, ScrollEasing::Ease) / 60.0;
+            let position = 0.3 * t + 0.7 * t * t * (3.0 - 2.0 * t);
+            assert!((position - fraction).abs() < 1e-10);
+        }
+    }
+
+    #[test]
+    fn later_clips_start_playing_at_entrance() {
+        let clips: Vec<_> = (0..4)
+            .map(|_| ClipInfo {
+                path: "clip.mp4".into(),
+                scaled_width: 100,
+                output_width: 100,
+                performers: vec![],
+                tags: vec![],
+                popularity: 0.0,
+                is_image: false,
+            })
+            .collect();
+        let graph = build_filter_graph(&clips, 100, 100, 60, 300, None, ScrollEasing::Linear);
+        assert!(graph.contains("tpad=start_mode=clone:start_duration=20.000000[v2]"));
+        assert!(graph.contains("tpad=start_mode=clone:start_duration=40.000000[v3]"));
+        assert!(!graph.contains("start_duration=0.000000"));
+    }
 
     #[test]
     fn filter_graph_stacks_and_scrolls_selected_clips() {

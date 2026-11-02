@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { api } from '#lib/api.js';
   import type { ClipSelection, RenderRequest } from '#lib/types.js';
+  import { estimateVisibility, excerptRange } from '#lib/timing.js';
   import RenderForm from '#lib/components/RenderForm.svelte';
   import RenderProgress from '#lib/components/RenderProgress.svelte';
   import { workflow, saveWorkflow } from '#lib/workflow.svelte.js';
@@ -18,6 +19,7 @@
   async function onRender(opts: Record<string, unknown>) {
     if (loading) return;
     const chosen = (workflow.clips ?? []).filter((c) => workflow.selected.includes(c.id));
+    const visibility = estimateVisibility(chosen, workflow.timing);
     const selections: ClipSelection[] = chosen.map((c) => ({
       id: c.id,
       content_url: c.content_url,
@@ -25,8 +27,8 @@
       mime_type: c.mime_type,
       width: c.width,
       height: c.height,
-      start_ms: workflow.ranges[c.id]?.[0] ?? 0,
-      end_ms: workflow.ranges[c.id]?.[1] ?? c.duration_ms,
+      start_ms: excerptRange(c, workflow.ranges[c.id]?.[0] ?? 0, visibility[c.id])[0],
+      end_ms: excerptRange(c, workflow.ranges[c.id]?.[0] ?? 0, visibility[c.id])[1],
       performers: c.performers,
       tags: c.tags
     }));

@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { onMount } from 'svelte';
+  import TimingSettings from '#lib/components/TimingSettings.svelte';
   import ClipGrid from '#lib/components/ClipGrid.svelte';
   import { workflow, saveWorkflow } from '#lib/workflow.svelte.js';
 
@@ -43,8 +44,16 @@
       <span aria-hidden="true">→</span>
     </button>
   </div>
+  <TimingSettings />
   {#if workflow.clips.length}
-    <ClipGrid clips={workflow.clips} {selected} {toggle} ranges={workflow.ranges} {onRange} />
+    <ClipGrid
+      clips={workflow.clips}
+      {selected}
+      {toggle}
+      ranges={workflow.ranges}
+      {onRange}
+      timing={workflow.timing}
+    />
   {:else}
     <div class="card bg-base-100 p-10 text-center text-base-content/60 card-border">
       No clips found. Try changing your filters.

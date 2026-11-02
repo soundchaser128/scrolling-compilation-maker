@@ -7,7 +7,7 @@
 
 <svelte:head><title>Studio — Scrolling Compilation Maker</title></svelte:head>
 <div class="min-h-screen bg-base-200 text-base-content">
-  <main class="mx-auto max-w-7xl px-6 py-10 lg:px-10 lg:py-14">
+  <main class="mx-auto flex max-w-7xl flex-col px-6 py-10 lg:px-10 lg:py-14">
     <div class="mb-10 flex flex-col justify-between gap-7 md:flex-row md:items-end">
       <div>
         <h1 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">
@@ -19,7 +19,7 @@
       </div>
     </div>
     <ul
-      class="steps mb-10 w-full max-w-2xl text-xs font-semibold sm:text-sm"
+      class="steps mb-10 w-full max-w-2xl self-center text-xs font-semibold sm:text-sm"
       aria-label="Workflow progress"
     >
       <li class="step step-neutral">Discover</li>
