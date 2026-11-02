@@ -7,6 +7,7 @@ use rust_embed::RustEmbed;
 
 #[derive(RustEmbed)]
 #[folder = "../web/build/"]
+#[allow_missing]
 struct Assets;
 
 pub async fn serve(req: Request<Body>) -> Response {
