@@ -50,33 +50,25 @@
   }
 </script>
 
-<main>
-  <h1 class="text-3xl font-bold">Scrolling Compilation Maker</h1>
-  <p>Choose clips, set their ranges, and make a scrolling video.</p>
-  {#if error}<div class="alert alert-error" role="alert">{error}</div>{/if}
-  {#if loading}<p>Working…</p>{/if}
-
-  {#if step === 'filters'}
-    <FilterForm {onGenerate} />
-  {:else if step === 'pool'}
-    <button class="btn" onclick={() => { step = 'filters'; }}>← Back to filters</button>
-    {#if loading}<p>Loading…</p>{/if}
-    <p>Select at least two clips to make a scrolling strip.</p>
-    <ClipGrid {clips} {selected} {toggle} {ranges} {onRange} />
-    <button class="btn" disabled={selected.size < 2} onclick={() => { step = 'render'; }}>
-      Continue with {selected.size} clip{selected.size === 1 ? '' : 's'}
-    </button>
-  {:else}
-    <button class="btn" onclick={() => { step = 'pool'; jobId = null; }}>Back to clips</button>
-    <RenderForm {onRender} />
-    {#if jobId}<RenderProgress id={jobId} />{/if}
-  {/if}
-</main>
-
-<style>
-  main { max-width: 1400px; margin: 0 auto; padding: 24px; }
-  h1 { margin-bottom: .5rem; }
-  main > p { margin-bottom: 2rem; }
-  button { padding: 8px 14px; margin: 8px 0; }
-  button:disabled { opacity: .4; }
-</style>
+<svelte:head><title>Studio — Scrolling Compilation Maker</title></svelte:head>
+<div class="min-h-screen bg-base-200 text-base-content">
+  <main class="mx-auto max-w-7xl px-6 py-10 lg:px-10 lg:py-14">
+    <div class="mb-10 flex flex-col justify-between gap-7 md:flex-row md:items-end">
+      <div><h1 class="mt-3 text-4xl font-black tracking-tight sm:text-5xl">{step === 'filters' ? 'Find your clips.' : step === 'pool' ? 'Build your lineup.' : 'Make it move.'}</h1></div>
+      <div class="stage-count"><span>0{step === 'filters' ? '1' : step === 'pool' ? '2' : '3'}</span><span class="text-base-content/30"> / 03</span></div>
+    </div>
+    <ul class="steps mb-10 w-full max-w-2xl text-xs font-semibold sm:text-sm" aria-label="Workflow progress"><li class="step step-neutral">Discover</li><li class:step-neutral={step !== 'filters'} class="step">Select clips</li><li class:step-neutral={step === 'render'} class="step">Render</li></ul>
+    {#if error}<div class="alert alert-error mb-6" role="alert">{error}</div>{/if}
+    {#if loading}<div class="mb-6 flex items-center gap-3 text-sm"><span class="loading loading-spinner loading-sm"></span> Working on it…</div>{/if}
+    {#if step === 'filters'}
+      <FilterForm {onGenerate} />
+    {:else if step === 'pool'}
+      <div class="mb-6 flex flex-wrap items-end justify-between gap-4"><div><button class="btn btn-ghost btn-sm -ml-3 mb-3" onclick={() => { step = 'filters'; }}>← Back to filters</button><h2 class="text-2xl font-bold">Your clip pool <span class="text-base-content/35">/ {clips.length}</span></h2></div><button class="btn btn-neutral" disabled={selected.size < 2 || loading} onclick={() => { step = 'render'; }}>Continue with {selected.size} clip{selected.size === 1 ? '' : 's'} <span aria-hidden="true">→</span></button></div>
+      {#if clips.length}<ClipGrid {clips} {selected} {toggle} {ranges} {onRange} />{:else}<div class="card card-border bg-base-100 p-10 text-center text-base-content/60">No clips found. Try changing your filters.</div>{/if}
+    {:else}
+      <button class="btn btn-ghost btn-sm -ml-3 mb-5" onclick={() => { step = 'pool'; jobId = null; }}>← Back to clips</button>
+      <RenderForm {onRender} />
+      {#if jobId}<RenderProgress id={jobId} />{/if}
+    {/if}
+  </main>
+</div>

@@ -23,19 +23,7 @@
 </script>
 
 {#if error}
-  <div class="error">{error}</div>
+  <div class="alert alert-error mt-6" role="alert">{error}</div>
 {:else}
-  <div class="progress">
-    <progress class="progress" value={pct} max="100" aria-label="Render progress"></progress>
-    <span>{status?.state ?? 'queued'} — {pct}%</span>
-    {#if status?.state === 'failed'}<div class="error">{status.error}</div>{/if}
-    {#if status?.state === 'done' && status.output_path}
-      <a href={api.outputUrl(id)} download>Download compilation</a>
-    {/if}
-  </div>
+  <section class="card card-border mt-6 bg-base-100"><div class="card-body"><div class="flex flex-wrap items-center justify-between gap-3"><div><div class="eyebrow">RENDER STATUS</div><h2 class="mt-2 text-xl font-bold capitalize">{status?.state ?? 'queued'}</h2></div><span class="text-2xl font-bold">{pct}%</span></div><progress class="progress progress-neutral mt-4 w-full" value={pct} max="100" aria-label="Render progress"></progress>{#if status?.state === 'failed'}<div class="alert alert-error mt-3" role="alert">{status.error}</div>{/if}{#if status?.state === 'done' && status.output_path}<a class="btn btn-neutral mt-4 self-start" href={api.outputUrl(id)} download>Download compilation ↓</a>{/if}</div></section>
 {/if}
-
-<style>
-  .progress { margin: 16px 0; }
-  .error { color: #ef5350; }
-</style>

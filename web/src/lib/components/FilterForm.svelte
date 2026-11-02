@@ -1,13 +1,7 @@
 <script lang="ts">
   import type { Orientation } from '$lib/types';
   import { api } from '$lib/api';
-  let tagSuggestions = $state<string[]>([]);
-  let personSuggestions = $state<string[]>([]);
-  async function suggest(kind: 'tag' | 'person', value: string) {
-    if (!value.trim()) return;
-    try { const found = kind === 'tag' ? await api.tags(value) : await api.people(value); if (kind === 'tag') tagSuggestions = found; else personSuggestions = found; } catch { /* Manual entry remains available. */ }
-  }
-
+  import Autocomplete from './Autocomplete.svelte';
   let tags = $state<string[]>([]);
   let people = $state<string[]>([]);
   let tagInput = $state('');
@@ -24,47 +18,20 @@
     with_images: boolean; max_clip_duration_ms: number; pool_size: number;
   };
 
-  function addTag() {
-    for (const v of tagInput.split(',').map(x => x.trim()).filter(Boolean)) if (!tags.includes(v)) tags = [...tags, v];
-    tagInput = '';
-  }
-  function addPerson() {
-    const v = personInput.trim();
-    if (v && !people.includes(v)) people = [...people, v];
-    personInput = '';
-  }
 </script>
 
-<div class="filters grid grid-cols-1 gap-4 md:grid-cols-2">
-  <label>Orientation
-    <select class="select" bind:value={orientation}>
-      <option value="portrait">Portrait</option>
-      <option value="landscape">Landscape</option>
-      <option value="square">Square</option>
-      <option value="any">Any</option>
-    </select>
-  </label>
+<div>
+  <section class="card card-border bg-base-100 shadow-sm"><div class="card-body p-6 sm:p-8">
+    <div class="mb-5 flex items-start justify-between gap-4"><div><div class="eyebrow">01 / DISCOVER</div><h2 class="mt-2 text-2xl font-bold">Set the scene</h2></div><span class="section-icon" aria-hidden="true">⌁</span></div>
+    <div class="grid gap-x-6 gap-y-5 md:grid-cols-2">
+      <Autocomplete label="Tags" placeholder="e.g. nature, travel" bind:value={tagInput} bind:items={tags} search={api.tags} />
+      <Autocomplete label="People" placeholder="Search people" bind:value={personInput} bind:items={people} search={api.people} />
+      <label class="field"><span>Orientation</span><select class="select w-full" bind:value={orientation}><option value="portrait">Portrait</option><option value="landscape">Landscape</option><option value="square">Square</option><option value="any">Any orientation</option></select></label>
+      <label class="field"><span>Maximum clip duration</span><div class="input w-full"><input type="number" min="1" max="300" bind:value={maxDuration} /><span class="text-xs text-base-content/50">seconds</span></div></label>
+      <label class="field"><span>Pool size</span><div class="input w-full"><input type="number" min="5" max="200" bind:value={poolSize} /><span class="text-xs text-base-content/50">clips</span></div></label>
+      <label class="flex items-center gap-3 self-center rounded-box border border-base-300 p-4"><input class="checkbox" type="checkbox" bind:checked={withImages} /><span><span class="block text-sm font-bold">Include images</span></span></label>
+    </div>
+    <div class="mt-7 border-t border-base-300 pt-6"><button class="btn btn-neutral w-full sm:w-auto" onclick={() => onGenerate({ tags: [...tags, ...tagInput.split(',').map(x => x.trim()).filter(Boolean)], people: [...people, ...personInput.split(',').map(x => x.trim()).filter(Boolean)], orientation, with_images: withImages, max_clip_duration_ms: maxDuration * 1000, pool_size: poolSize })}>Generate clip pool <span aria-hidden="true">→</span></button></div>
+  </div></section>
 
-  <label>Tags (comma/enter separated)
-    <input class="input w-full" list="tag-suggestions" bind:value={tagInput} oninput={() => suggest('tag', tagInput)} onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} />
-    <datalist id="tag-suggestions">{#each tagSuggestions as suggestion}<option value={suggestion}></option>{/each}</datalist>
-    <span class="chips">{#each tags as t}<span class="chip">{t}<button class="btn btn-xs" aria-label={`Remove ${t}`} onclick={() => tags = tags.filter(x => x !== t)}>×</button></span>{/each}</span>
-  </label>
-
-  <label>People
-    <input class="input w-full" list="person-suggestions" bind:value={personInput} oninput={() => suggest('person', personInput)} onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), addPerson())} />
-    <datalist id="person-suggestions">{#each personSuggestions as suggestion}<option value={suggestion}></option>{/each}</datalist>
-    <span class="chips">{#each people as p}<span class="chip">{p}<button class="btn btn-xs" aria-label={`Remove ${p}`} onclick={() => people = people.filter(x => x !== p)}>×</button></span>{/each}</span>
-  </label>
-
-  <label><input class="checkbox" type="checkbox" bind:checked={withImages} /> Include images</label>
-  <label>Max clip duration (s) <input class="input" type="number" min="1" max="300" bind:value={maxDuration} /></label>
-  <label>Pool size <input class="input" type="number" min="5" max="200" bind:value={poolSize} /></label>
-
-  <button class="btn" onclick={() => onGenerate({
-    tags: [...tags, ...tagInput.split(',').map(x => x.trim()).filter(Boolean)], people: [...people, ...personInput.split(',').map(x => x.trim()).filter(Boolean)], orientation, with_images: withImages,
-    max_clip_duration_ms: maxDuration * 1000, pool_size: poolSize,
-  })}>
-    Generate pool
-  </button>
 </div>
