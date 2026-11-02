@@ -6,7 +6,7 @@
 
 **Architecture:** A Rust `axum`/`tokio` backend replaces the CLI/TUI entrypoints but reuses the ffmpeg filter-graph builder and Alexandria client logic. A SvelteKit frontend drives a 3-step wizard (filters → clip pool + time-range selection → render + download). The backend exposes a small JSON API (`/api/pool`, `/api/render`, `/api/render/{id}`, …) and runs ffmpeg as background jobs with progress polling. The scrolling viewport render model is unchanged; the new "time range" concept is implemented by trimming each selected clip to a local segment that then loops inside the existing filter graph.
 
-**Tech Stack:** Rust (axum, tokio, reqwest async, futures), SvelteKit (Svelte 5 runes), ffmpeg/ffprobe (external), yt-dlp (optional, unchanged).
+**Tech Stack:** Rust (axum, tokio, reqwest async, futures), SvelteKit (Svelte 5 runes, static adapter and client-side rendering), Tailwind CSS, daisyUI, ffmpeg/ffprobe (external), yt-dlp (optional, unchanged).
 
 ---
 
@@ -85,7 +85,7 @@ edition = "2024"
 [dependencies]
 axum = "0.8"
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6", features = ["trace"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
@@ -135,18 +135,22 @@ git commit -m "scaffold axum server crate"
 
 - [ ] **Step 1: Scaffold with npm**
 
-Run: `npm create svelte@latest web` (choose: TypeScript, ESLint off, Prettier off, no add-ons, "Skeleton" template)
+Run: `npx sv create web` (choose a minimal SvelteKit app with TypeScript).
 
 - [ ] **Step 2: Install**
 
 Run: `cd web && npm install`
 
-- [ ] **Step 3: Verify**
+- [ ] **Step 3: Configure client-side mode and UI dependencies**
+
+Install `@sveltejs/adapter-static`, `tailwindcss`, `@tailwindcss/vite`, and `daisyui`. Configure the Tailwind Vite plugin and import a global stylesheet from `+layout.svelte`. In that stylesheet use `@import "tailwindcss";` and `@plugin "daisyui";`. Configure `adapter-static` with `fallback: 'index.html'`, and set `export const ssr = false` in `src/routes/+layout.ts`. Build into `web/build`. Do not use server routes or a Node runtime in production.
+
+- [ ] **Step 4: Verify**
 
 Run: `cd web && npm run dev` (kill after confirming it serves)
 Expected: dev server starts on http://localhost:5173
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add web/
@@ -600,7 +604,6 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
-use tower_http::cors::CorsLayer;
 use uuid::Uuid;
 
 use crate::{
@@ -717,7 +720,6 @@ pub fn router(state: AppState) -> Router {
         .route("/api/tags", get(autocomplete_tags))
         .route("/api/people", get(autocomplete_people))
         .route("/api/pool", post(create_pool))
-        .layer(CorsLayer::permissive())
         .with_state(state)
 }
 ```
@@ -1498,6 +1500,8 @@ git commit -m "async song download wrapper"
 
 # Milestone 5 — Frontend (SvelteKit Wizard)
 
+Use daisyUI components and Tailwind utilities throughout the wizard. The snippets below illustrate behavior; replace their plain classes and custom styles with daisyUI and Tailwind classes during implementation. Keep controls accessible and avoid nested interactive elements.
+
 ### Task 5.1: Types + API client
 
 **Files:**
@@ -2067,11 +2071,22 @@ git commit -m "wizard page wiring filters/pool/render"
 
 # Milestone 6 — Integration Test, Cleanup, Docs
 
+### Task 6.0: Embed and serve the frontend
+
+- [ ] Build the frontend first: `cd web && npm ci && npm run build`. The static adapter must produce `web/build/index.html` and its assets.
+- [ ] Add `rust-embed` and `mime_guess` to the server. Embed `../web/build` at compile time. A missing build must fail the server build with a clear instruction to build the frontend first.
+- [ ] Add an axum fallback that serves embedded assets with their correct MIME types. Serve `index.html` for browser navigation routes. Keep `/api` routes ahead of the fallback; unknown `/api` paths must return 404 rather than the SPA. Missing asset paths must also return 404.
+- [ ] Keep frontend requests relative to `/api`. The Vite proxy forwards them in development; axum serves both UI and API from one origin in production. Do not enable CORS.
+- [ ] Build the frontend before every production server build. Document this ordering and include the generated assets in the binary, not as runtime files.
+- [ ] Test the production binary from a directory without `web/build`: load `/`, a JS asset, and a client route; verify an unknown asset and unknown API route return 404. Verify an API request from the UI reaches axum.
+
 ### Task 6.1: End-to-end smoke test
 
 - [ ] **Step 1: Start the backend**
 
 ```bash
+cd web && npm run build
+cd ..
 cargo build --manifest-path server/Cargo.toml
 OUTPUT_DIR=./server/output ./server/target/debug/scm-server
 ```
@@ -2122,8 +2137,9 @@ git rm -r src Cargo.toml Cargo.lock data
 - [ ] **Step 3: Verify the repo builds from the top level**
 
 ```bash
-cargo build --manifest-path server/Cargo.toml
 cd web && npm run build
+cd ..
+cargo build --manifest-path server/Cargo.toml
 ```
 Expected: both succeed.
 
@@ -2138,7 +2154,7 @@ git commit -m "remove legacy CLI/TUI"
 **Files:**
 - Create: `README.md`
 
-- [ ] **Step 1: Write `README.md`** covering: prerequisites (ffmpeg, yt-dlp optional, node, rust), env vars (`ALEXANDRIA_API_URL`, `CONTENT_URL`, `BIND_ADDR`, `OUTPUT_DIR`, `GPU`), how to run backend + frontend, and the 3-step workflow.
+- [ ] **Step 1: Write `README.md`** covering: prerequisites (ffmpeg, yt-dlp optional, node, rust), env vars (`ALEXANDRIA_API_URL`, `CONTENT_URL`, `BIND_ADDR`, `OUTPUT_DIR`, `GPU`), how to run backend + frontend in development, the frontend-first production build, the single-binary runtime, and the 3-step workflow.
 
 - [ ] **Step 2: Commit**
 
@@ -2150,6 +2166,10 @@ git commit -m "add README"
 ---
 
 ## Verification Checklist (final)
+
+- [ ] Production binary serves embedded UI and API from one origin without runtime frontend files
+- [ ] Unknown API and asset paths return 404; client routes load the SPA
+- [ ] Development requests use the Vite proxy without CORS
 
 - [ ] `cargo build --manifest-path server/Cargo.toml` clean
 - [ ] `cargo clippy --manifest-path server/Cargo.toml` no warnings that matter
@@ -2165,4 +2185,4 @@ git commit -m "add README"
 - Selection/pool persistence across reloads
 - RedGifs/Reddit auto-posting (user handles manually)
 - Background queue with cancellation
-- Serving the built frontend from the axum server in production (currently dev uses the Vite proxy; for prod either `vite build` + `tower-http` `ServeDir`, or a reverse proxy)
+
