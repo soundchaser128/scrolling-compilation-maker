@@ -3,7 +3,7 @@ import type { ClipCandidate, RenderRequest, RenderStatus } from './types';
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     headers: { 'content-type': 'application/json' },
-    ...init,
+    ...init
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
@@ -21,5 +21,5 @@ export const api = {
     req<{ id: string }>('/api/render', { method: 'POST', body: JSON.stringify(body) }),
   status: (id: string) => req<RenderStatus>(`/api/render/${id}`),
   outputUrl: (id: string) => `/api/output/${id}`,
-  thumbUrl: (url: string, t = 1) => `/api/thumb?url=${encodeURIComponent(url)}&t=${t}`,
+  thumbUrl: (url: string, t = 1) => `/api/thumb?url=${encodeURIComponent(url)}&t=${t}`
 };

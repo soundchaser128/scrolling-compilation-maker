@@ -1,6 +1,16 @@
 <script lang="ts">
-  let { label, placeholder, value = $bindable(''), items = $bindable<string[]>([]), search }: {
-    label: string; placeholder: string; value: string; items: string[]; search: (query: string) => Promise<string[]>;
+  let {
+    label,
+    placeholder,
+    value = $bindable(''),
+    items = $bindable<string[]>([]),
+    search
+  }: {
+    label: string;
+    placeholder: string;
+    value: string;
+    items: string[];
+    search: (query: string) => Promise<string[]>;
   } = $props();
 
   let id = $derived(`autocomplete-${label.toLowerCase()}`);
@@ -38,7 +48,10 @@
   }
 
   function add(input: string) {
-    for (const item of input.split(',').map((part) => part.trim()).filter(Boolean)) {
+    for (const item of input
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)) {
       if (!items.includes(item)) items = [...items, item];
     }
     value = '';
@@ -53,31 +66,81 @@
 
   function keydown(event: KeyboardEvent) {
     if (event.key === 'ArrowDown' && suggestions.length) {
-      event.preventDefault(); open = true; active = (active + 1) % suggestions.length;
+      event.preventDefault();
+      open = true;
+      active = (active + 1) % suggestions.length;
     } else if (event.key === 'ArrowUp' && suggestions.length) {
-      event.preventDefault(); open = true; active = (active - 1 + suggestions.length) % suggestions.length;
+      event.preventDefault();
+      open = true;
+      active = (active - 1 + suggestions.length) % suggestions.length;
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      if (open && active >= 0) choose(suggestions[active]); else add(value);
+      if (open && active >= 0) choose(suggestions[active]);
+      else add(value);
     } else if (event.key === 'Escape') {
       clear();
     }
   }
 
-  $effect(() => () => { clearTimeout(timer); request++; });
+  $effect(() => () => {
+    clearTimeout(timer);
+    request++;
+  });
 </script>
 
 <div class="field">
   <label for={id}>{label}</label>
   <div class="relative">
-    <input id={id} class="input w-full" {placeholder} role="combobox" aria-autocomplete="list" aria-expanded={open} aria-controls={`${id}-list`} aria-activedescendant={open && active >= 0 ? `${id}-option-${active}` : undefined} {value} oninput={(event) => update(event.currentTarget.value)} onkeydown={keydown} onblur={() => { focused = false; open = false; }} onfocus={() => { focused = true; if (suggestions.length) open = true; }} />
+    <input
+      {id}
+      class="input w-full"
+      {placeholder}
+      role="combobox"
+      aria-autocomplete="list"
+      aria-expanded={open}
+      aria-controls={`${id}-list`}
+      aria-activedescendant={open && active >= 0 ? `${id}-option-${active}` : undefined}
+      {value}
+      oninput={(event) => update(event.currentTarget.value)}
+      onkeydown={keydown}
+      onblur={() => {
+        focused = false;
+        open = false;
+      }}
+      onfocus={() => {
+        focused = true;
+        if (suggestions.length) open = true;
+      }}
+    />
     {#if open}
-      <ul id={`${id}-list`} role="listbox" class="menu absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg">
+      <ul
+        id={`${id}-list`}
+        role="listbox"
+        class="menu absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg"
+      >
         {#each suggestions as suggestion, index}
-          <li role="presentation"><button id={`${id}-option-${index}`} type="button" role="option" aria-selected={active === index} class:menu-active={active === index} onmousedown={(event) => event.preventDefault()} onclick={() => choose(suggestion)}>{suggestion}</button></li>
+          <li role="presentation">
+            <button
+              id={`${id}-option-${index}`}
+              type="button"
+              role="option"
+              aria-selected={active === index}
+              class:menu-active={active === index}
+              onmousedown={(event) => event.preventDefault()}
+              onclick={() => choose(suggestion)}>{suggestion}</button
+            >
+          </li>
         {/each}
       </ul>
     {/if}
   </div>
-  <div class="flex flex-wrap gap-1">{#each items as item}<span class="badge badge-outline">{item}<button type="button" aria-label={`Remove ${item}`} onclick={() => items = items.filter((entry) => entry !== item)}>×</button></span>{/each}</div>
+  <div class="flex flex-wrap gap-1">
+    {#each items as item}<span class="badge badge-outline"
+        >{item}<button
+          type="button"
+          aria-label={`Remove ${item}`}
+          onclick={() => (items = items.filter((entry) => entry !== item))}>×</button
+        ></span
+      >{/each}
+  </div>
 </div>
