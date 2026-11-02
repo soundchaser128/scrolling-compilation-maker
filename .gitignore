@@ -1,3 +1,6 @@
 /target
 *.mp4
 config.toml
+
+/server/target
+/server/output

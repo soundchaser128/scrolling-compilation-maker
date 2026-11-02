@@ -1,0 +1,23 @@
+[package]
+name = "scm-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.6", features = ["trace"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+color-eyre = "0.6"
+uuid = { version = "1", features = ["serde", "v4"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "2"
+rand = "0.9"
+futures = "0.3"
+tokio-util = { version = "0.7", features = ["io"] }
+
+rust-embed = { version = "8", features = ["debug-embed"] }
+mime_guess = "2"
