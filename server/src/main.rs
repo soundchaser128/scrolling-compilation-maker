@@ -9,8 +9,6 @@ mod source;
 mod state;
 mod types;
 
-use axum::Router;
-
 #[tokio::main]
 async fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
@@ -22,7 +20,7 @@ async fn main() -> color_eyre::Result<()> {
     ffmpeg::check_ffmpeg()?;
     let bind_addr = config.bind_addr.clone();
     let state = state::AppState::new(config)?;
-    let app: Router = api::router(state).fallback(assets::serve);
+    let app = api::router(state).fallback(assets::serve);
 
     let listener = tokio::net::TcpListener::bind(bind_addr).await?;
     tracing::info!("listening on {}", listener.local_addr()?);

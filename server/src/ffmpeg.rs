@@ -10,6 +10,7 @@ use std::{
 };
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tracing::info;
+
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Text {
@@ -124,6 +125,8 @@ pub async fn trim_clip(url: &str, start_ms: u64, end_ms: u64, out: &Path) -> Res
         .arg("make_zero")
         .arg("-y")
         .arg(out)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .status()
         .await?;
     if !status.success() {
@@ -218,6 +221,7 @@ pub async fn render(params: RenderParams) -> Result<()> {
     let stderr = child.stderr.take().unwrap();
     let stderr_task = tokio::spawn(async move {
         use tokio::io::AsyncReadExt;
+
         let mut stderr = stderr;
         let mut buf = String::new();
         let _ = stderr.read_to_string(&mut buf).await;

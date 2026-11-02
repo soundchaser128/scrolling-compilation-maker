@@ -10,9 +10,9 @@ use uuid::Uuid;
 
 use crate::{
     error::ApiResult,
-    source::MediaSource,
+    source::{MediaSource, PoolParams},
     state::AppState,
-    types::{MediaFile, Orientation},
+    types::{FileType, MediaFile, Orientation},
 };
 
 #[derive(Serialize)]
@@ -34,7 +34,7 @@ fn candidate(m: &MediaFile, content_base: &str) -> ClipCandidate {
         id: m.id,
         content_url: m.content_url(content_base),
         file_type: match m.file_type {
-            crate::types::FileType::Image => "image".into(),
+            FileType::Image => "image".into(),
             _ => "video".into(),
         },
         mime_type: m.mime_type.clone(),
@@ -82,13 +82,13 @@ async fn create_pool(
 ) -> ApiResult<Json<Vec<ClipCandidate>>> {
     if !(1..=200).contains(&req.pool_size) || req.max_clip_duration_ms == 0 {
         return Err(crate::error::ApiError::BadRequest(
-            "pool size must be 1–200 and duration must be positive".into(),
+            "pool size must be 1-200 and duration must be positive".into(),
         ));
     }
     let seed = req.seed.unwrap_or_else(rand::random);
     let files = state
         .source
-        .fetch_pool(crate::source::PoolParams {
+        .fetch_pool(PoolParams {
             pool_size: req.pool_size,
             max_clip_duration_ms: req.max_clip_duration_ms,
             seed,
@@ -98,10 +98,12 @@ async fn create_pool(
             with_images: req.with_images,
         })
         .await?;
-    let candidates: Vec<ClipCandidate> = files
+    let mut candidates: Vec<ClipCandidate> = files
         .iter()
         .map(|m| candidate(m, &state.config.content_url))
         .collect();
+    candidates.sort_by(|c, d| d.popularity.total_cmp(&c.popularity));
+
     Ok(Json(candidates))
 }
 
