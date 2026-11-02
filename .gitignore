@@ -1,3 +1,9 @@
 /target
 *.mp4
 config.toml
+
+/server/target
+/server/output
+/web/node_modules
+/web/build
+/web/.svelte-kit

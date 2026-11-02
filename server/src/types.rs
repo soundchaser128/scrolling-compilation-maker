@@ -1,7 +1,5 @@
-use std::{num::ParseIntError, sync::LazyLock, time::Duration};
+use std::{num::ParseIntError, time::Duration};
 
-use clap::ValueEnum;
-use rand::prelude::IndexedRandom;
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -30,69 +28,6 @@ impl AspectRatio {
         w += w % 2; // round up to even
         w
     }
-}
-
-static ADJECTIVES: LazyLock<Vec<&str>> = LazyLock::new(|| {
-    include_str!("../data/adjectives.txt")
-        .lines()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .collect()
-});
-
-static NOUNS: LazyLock<Vec<&str>> = LazyLock::new(|| {
-    include_str!("../data/nouns.txt")
-        .lines()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .collect()
-});
-
-#[derive(Debug, Clone, Copy)]
-enum IdFormat {
-    Long,
-    Short,
-}
-
-fn random_id(format: IdFormat) -> String {
-    let mut rng = rand::rng();
-    let adj1 = ADJECTIVES.choose(&mut rng).unwrap();
-    let adj2 = ADJECTIVES.choose(&mut rng).unwrap();
-    let noun = NOUNS.choose(&mut rng).unwrap();
-    match format {
-        IdFormat::Long => format!("{}-{}-{}", adj1, adj2, noun),
-        IdFormat::Short => format!("{}{}{}", &adj1[0..2], &adj2[0..2], &noun[0..2]),
-    }
-}
-
-/// Generate an output filename from CLI parameters or a random adjective-adjective-noun name.
-pub fn generate_output_name(tags: &[String], people: &[String]) -> String {
-    let mut parts: Vec<String> = Vec::new();
-
-    for p in people {
-        parts.push(slugify(p));
-    }
-
-    for t in tags {
-        parts.push(slugify(t));
-    }
-
-    if parts.is_empty() {
-        format!("{}.mp4", random_id(IdFormat::Long))
-    } else {
-        format!("{}-{}.mp4", parts.join("-"), random_id(IdFormat::Short))
-    }
-}
-
-fn slugify(s: &str) -> String {
-    s.to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
 }
 
 /// Parse a human-friendly duration string like "30s", "1m", "1m30s", "90".
@@ -136,7 +71,8 @@ pub fn parse_duration(s: &str) -> Result<Duration, String> {
     Ok(Duration::from_secs(total_secs))
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Orientation {
     Any,
     Portrait,
@@ -242,20 +178,23 @@ pub struct ClipInfo {
     pub is_image: bool,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ScrollEasing {
     Linear,
     Ease,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Codec {
     X264,
     Hevc,
     Av1,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Quality {
     Low,
     Medium,
@@ -263,7 +202,8 @@ pub enum Quality {
     VeryHigh,
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Effort {
     Low,
     Medium,
@@ -480,5 +420,35 @@ impl std::fmt::Display for ScrollEasing {
             ScrollEasing::Linear => write!(f, "Linear"),
             ScrollEasing::Ease => write!(f, "Ease (smoothstep)"),
         }
+    }
+}
+
+impl Default for Orientation {
+    fn default() -> Self {
+        Self::Any
+    }
+}
+
+impl Default for ScrollEasing {
+    fn default() -> Self {
+        Self::Linear
+    }
+}
+
+impl Default for Codec {
+    fn default() -> Self {
+        Self::X264
+    }
+}
+
+impl Default for Quality {
+    fn default() -> Self {
+        Self::Medium
+    }
+}
+
+impl Default for Effort {
+    fn default() -> Self {
+        Self::Medium
     }
 }
