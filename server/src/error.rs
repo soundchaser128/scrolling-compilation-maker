@@ -42,6 +42,11 @@ impl IntoResponse for ApiError {
             ApiError::NotFound(_) => StatusCode::NOT_FOUND,
             ApiError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
+        if status.is_server_error() {
+            tracing::error!(error = %self, "request failed");
+        } else {
+            tracing::debug!(error = %self, %status, "request rejected");
+        }
         let msg = self.to_string();
         (status, Json(serde_json::json!({ "error": msg }))).into_response()
     }

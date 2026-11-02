@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{process::Stdio, sync::Arc};
 
 use axum::{
     Json, Router,
@@ -6,6 +6,8 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
+use tower_http::trace::TraceLayer;
+use tracing::Instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -76,6 +78,7 @@ pub struct AutocompleteQuery {
     pub query: Option<String>,
 }
 
+#[tracing::instrument(skip_all, fields(pool_size = req.pool_size, max_clip_duration_ms = req.max_clip_duration_ms, with_images = req.with_images))]
 async fn create_pool(
     State(state): State<AppState>,
     Json(req): Json<PoolRequest>,
@@ -104,6 +107,7 @@ async fn create_pool(
         .collect();
     candidates.sort_by(|c, d| d.popularity.total_cmp(&c.popularity));
 
+    tracing::info!(count = candidates.len(), "created media pool");
     Ok(Json(candidates))
 }
 
@@ -140,6 +144,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/render/{id}", get(render_status))
         .route("/api/output/{id}", get(download_output))
         .route("/api/thumb", get(thumbnail))
+        .layer(TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
+            tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
+        }).on_response(tower_http::trace::DefaultOnResponse::new().level(tracing::Level::INFO)))
         .with_state(state)
 }
 
@@ -214,6 +221,7 @@ fn default_60() -> u32 {
     60
 }
 
+#[tracing::instrument(skip_all, fields(job_id = %id, clip_count = req.clips.len(), duration_secs = req.duration_secs))]
 async fn run_render(
     state: AppState,
     req: RenderRequest,
@@ -221,6 +229,7 @@ async fn run_render(
     id: Uuid,
     progress: Arc<AtomicU64>,
 ) {
+    tracing::info!("render started");
     let result: color_eyre::Result<PathBuf> = async {
         if req.clips.is_empty() {
             color_eyre::eyre::bail!("select at least one clip");
@@ -300,11 +309,13 @@ async fn run_render(
     let mut s = status.lock().await;
     match result {
         Ok(path) => {
+            tracing::info!("render completed");
             s.state = JobState::Done;
             s.progress = 1.0;
             s.output_path = Some(path);
         }
         Err(e) => {
+            tracing::error!(error = %e, "render failed");
             s.state = JobState::Failed;
             s.error = Some(format!("{e:#}"));
         }
@@ -316,6 +327,7 @@ pub struct JobCreated {
     pub id: Uuid,
 }
 
+#[tracing::instrument(skip_all, fields(clip_count = req.clips.len(), duration_secs = req.duration_secs))]
 async fn start_render(
     State(state): State<AppState>,
     Json(req): Json<RenderRequest>,
@@ -338,6 +350,7 @@ async fn start_render(
         ));
     }
     let (id, status) = state.jobs.create().await;
+    tracing::info!(job_id = %id, "render queued");
     let progress = Arc::new(AtomicU64::new(0));
     {
         let mut s = status.lock().await;
@@ -345,13 +358,16 @@ async fn start_render(
         s.duration_secs = req.duration_secs;
     }
     let job_state = state.clone();
-    tokio::spawn(async move {
-        {
-            let mut s = status.lock().await;
-            s.state = JobState::Running;
+    tokio::spawn(
+        async move {
+            {
+                let mut s = status.lock().await;
+                s.state = JobState::Running;
+            }
+            run_render(job_state, req, status, id, progress).await;
         }
-        run_render(job_state, req, status, id, progress).await;
-    });
+        .instrument(tracing::Span::current()),
+    );
     Ok(Json(JobCreated { id }))
 }
 
@@ -432,6 +448,7 @@ pub struct ThumbQuery {
     pub t: f32,
 }
 
+#[tracing::instrument(skip_all)]
 async fn thumbnail(
     State(state): State<AppState>,
     Query(q): Query<ThumbQuery>,
@@ -445,6 +462,7 @@ async fn thumbnail(
         .work_dir
         .join(format!("thumb-{key}-{}.jpg", (q.t * 10.0) as u32));
     if !cache.exists() {
+        tracing::debug!("generating thumbnail");
         let status = tokio::process::Command::new("ffmpeg")
             .arg("-ss")
             .arg(q.t.to_string())
@@ -456,9 +474,9 @@ async fn thumbnail(
             .arg("scale=320:-2")
             .arg("-y")
             .arg(&cache)
-            .status()
+            .output()
             .await?;
-        if !status.success() {
+        if !status.status.success() {
             return Err(crate::error::ApiError::Internal(
                 "thumbnail generation failed".into(),
             ));

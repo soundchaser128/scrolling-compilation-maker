@@ -4,7 +4,6 @@ use color_eyre::{Result, eyre::bail};
 use futures::stream::{self, StreamExt};
 use reqwest::{Client, Url};
 use serde::Deserialize;
-use tracing::warn;
 
 use crate::{
     source::{MediaSource, PoolParams},
@@ -42,6 +41,7 @@ impl AlexandriaMediaSource {
 
 #[allow(async_fn_in_trait)]
 impl MediaSource for AlexandriaMediaSource {
+    #[tracing::instrument(skip_all, fields(pool_size = params.pool_size, max_clip_duration_ms = params.max_clip_duration_ms, with_images = params.with_images), err)]
     async fn fetch_pool(&self, params: PoolParams) -> Result<Vec<MediaFile>> {
         let mut candidates: Vec<MediaFile> = Vec::new();
         let mut page = 0u32;
@@ -82,6 +82,12 @@ impl MediaSource for AlexandriaMediaSource {
             }
             let page_response: PageResponse<MediaFile> = resp.json().await?;
             let total_pages = page_response.page.total_pages;
+            tracing::debug!(
+                page,
+                total_pages,
+                count = page_response.content.len(),
+                "fetched media page"
+            );
 
             for m in page_response.content {
                 if m.width.is_none()
@@ -124,10 +130,19 @@ impl MediaSource for AlexandriaMediaSource {
         if pool.is_empty() {
             bail!("No suitable media found");
         }
-        warn!("Returned {} of {} requested", pool.len(), params.pool_size);
+        if pool.len() < params.pool_size {
+            tracing::warn!(
+                returned = pool.len(),
+                requested = params.pool_size,
+                "media pool is smaller than requested"
+            );
+        } else {
+            tracing::debug!(returned = pool.len(), "media pool fetched");
+        }
         Ok(pool)
     }
 
+    #[tracing::instrument(skip_all, err)]
     async fn fetch_people(&self, prefix: Option<&str>) -> Result<Vec<String>> {
         let mut url = Url::parse(&format!("{}/api/people/autocomplete", self.api_url))?;
         if let Some(prefix) = prefix {
@@ -137,6 +152,7 @@ impl MediaSource for AlexandriaMediaSource {
         Ok(people.into_iter().map(|p| p.name).collect())
     }
 
+    #[tracing::instrument(skip_all, err)]
     async fn fetch_tags(&self, prefix: Option<&str>) -> Result<Vec<String>> {
         let mut url = Url::parse(&format!("{}/api/tag", self.api_url))?;
         if let Some(prefix) = prefix {

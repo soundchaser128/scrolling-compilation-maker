@@ -9,7 +9,6 @@ use std::{
     },
 };
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tracing::info;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -95,6 +94,7 @@ fn escape_drawtext(text: &str) -> String {
         .replace('\'', "'\\\\\\''")
 }
 
+#[tracing::instrument(err)]
 pub fn check_ffmpeg() -> Result<()> {
     let output = Command::new("ffmpeg")
         .arg("-version")
@@ -109,6 +109,7 @@ pub fn check_ffmpeg() -> Result<()> {
 }
 
 /// Trim a remote clip to [start_ms, end_ms] via stream copy into a local segment.
+#[tracing::instrument(skip_all, fields(start_ms, end_ms), err)]
 pub async fn trim_clip(url: &str, start_ms: u64, end_ms: u64, out: &Path) -> Result<()> {
     let start = format!("{:.3}", start_ms as f64 / 1000.0);
     let end = format!("{:.3}", end_ms as f64 / 1000.0);
@@ -148,6 +149,16 @@ pub struct RenderParams {
     /// out_time in microseconds, updated as ffmpeg reports progress
     pub progress: Arc<AtomicU64>,
 }
+#[tracing::instrument(
+    skip_all, 
+    fields(
+        clip_count = params.clips.len(), 
+        duration_secs = params.duration_secs, 
+        width = params.viewport_width, 
+        height = params.viewport_height
+    ), 
+    err
+)]
 pub async fn render(params: RenderParams) -> Result<()> {
     let RenderParams {
         clips,
@@ -180,7 +191,7 @@ pub async fn render(params: RenderParams) -> Result<()> {
         text,
         easing,
     );
-    info!("Filter graph:\n{filter_graph}");
+    tracing::debug!("built ffmpeg filter graph");
 
     let mut cmd = tokio::process::Command::new("ffmpeg");
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -217,6 +228,7 @@ pub async fn render(params: RenderParams) -> Result<()> {
     cmd.arg("-y").arg("-progress").arg("-").arg("-nostats");
     cmd.arg(&output);
 
+    tracing::info!("starting ffmpeg render");
     let mut child = cmd.spawn()?;
     let stderr = child.stderr.take().unwrap();
     let stderr_task = tokio::spawn(async move {
@@ -241,6 +253,7 @@ pub async fn render(params: RenderParams) -> Result<()> {
         let buf = stderr_task.await.unwrap_or_default();
         bail!("ffmpeg failed ({status}):\n{buf}");
     }
+    tracing::info!("ffmpeg render completed");
     Ok(())
 }
 

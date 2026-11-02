@@ -2,6 +2,7 @@ use color_eyre::Result;
 use std::path::{Path, PathBuf};
 
 /// Download audio (blocking) off the async runtime.
+#[tracing::instrument(skip_all, err)]
 pub async fn download_song(url: &str, dest_dir: &Path) -> Result<PathBuf> {
     let url = url.to_string();
     let dest = dest_dir.to_path_buf();
