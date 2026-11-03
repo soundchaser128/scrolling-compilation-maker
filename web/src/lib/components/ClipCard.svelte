@@ -125,9 +125,13 @@
   >
   <div class="row">
     <span class="title"
-      >{clip.performers.join(', ') || clip.tags.slice(0, 3).join(', ') || 'untitled'}</span
+      >{clip.title}</span
     >
     <span class="popularity">★ {clip.popularity.toFixed(1)}</span>
+  </div>
+
+  <div class="row">
+    {clip.performers.join(", ")}
   </div>
 
   {#if isVideo}
@@ -185,8 +189,10 @@
     position: relative;
     aspect-ratio: 9/16;
     background: #171d19;
-    border-radius: 0.6rem;
     overflow: hidden;
+    margin-left: -10px;
+    margin-right: -10px;
+    margin-top: -10px;
   }
   video,
   img {
@@ -216,14 +222,8 @@
     gap: 6px;
     font-size: 12px;
   }
-  .times,
-  .tags {
+  .times {
     color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
     font-size: 11px;
-  }
-  .tags {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 </style>
