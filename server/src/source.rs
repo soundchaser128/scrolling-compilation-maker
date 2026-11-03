@@ -12,6 +12,7 @@ pub struct PoolParams {
     pub tags: Vec<String>,
     pub people: Vec<String>,
     pub with_images: bool,
+    pub category: Option<String>,
 }
 
 #[allow(async_fn_in_trait)]

@@ -67,6 +67,7 @@ pub struct PoolRequest {
     #[serde(default = "default_pool_size")]
     pub pool_size: usize,
     pub seed: Option<f64>,
+    pub category: Option<String>,
 }
 
 fn default_max_duration() -> u64 {
@@ -102,6 +103,7 @@ async fn create_pool(
             tags: req.tags,
             people: req.people,
             with_images: req.with_images,
+            category: req.category,
         })
         .await?;
     let mut candidates: Vec<ClipCandidate> = files

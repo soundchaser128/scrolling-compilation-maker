@@ -74,6 +74,11 @@ impl MediaSource for AlexandriaMediaSource {
                     q.append_pair("page", &page.to_string());
                     q.append_pair("seed", &seed);
                     q.append_pair("withTags", "true");
+                    if let Some(category) = &params.category
+                        && category.trim().len() > 0
+                    {
+                        q.append_pair("category", category.trim());
+                    }
                     if params.with_images {
                         q.append_pair("fileType", "image");
                     }
@@ -298,6 +303,7 @@ mod tests {
                     tags: vec!["tag".into()],
                     people: people.into_iter().map(String::from).collect(),
                     with_images: true,
+                    category: None,
                 })
                 .await
                 .unwrap();

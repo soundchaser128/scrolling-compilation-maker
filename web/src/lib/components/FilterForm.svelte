@@ -7,9 +7,9 @@
   let tagInput = $state('');
   let personInput = $state('');
   let orientation = $state<Orientation>('portrait');
-  let withImages = $state(false);
   let maxDuration = $state(30);
   let poolSize = $state(50);
+  let category = $state('');
 
   let { onGenerate }: { onGenerate: (f: Filters) => void } = $props();
 
@@ -17,9 +17,9 @@
     tags: string[];
     people: string[];
     orientation: Orientation;
-    with_images: boolean;
     max_clip_duration_ms: number;
     pool_size: number;
+    category: string;
   };
 </script>
 
@@ -64,11 +64,16 @@
             >
           </div></label
         >
-        <label class="flex items-center gap-3 self-center rounded-box border border-base-300 p-4"
-          ><input class="checkbox" type="checkbox" bind:checked={withImages} /><span
-            ><span class="block text-sm font-bold">Include images</span></span
-          ></label
-        >
+
+        <label class="field">
+          <span>Category</span>
+          <select bind:value={category} class="select w-full">
+            <option value="">All</option>
+            <option value="rule34">Rule 34</option>
+            <option value="professional">Professional</option>
+            <option value="independent">Independent</option>
+          </select>
+        </label>
       </div>
       <div class="mt-7 border-t border-base-300 pt-6">
         <button
@@ -90,9 +95,9 @@
                   .filter(Boolean)
               ],
               orientation,
-              with_images: withImages,
               max_clip_duration_ms: maxDuration * 1000,
-              pool_size: poolSize
+              pool_size: poolSize,
+              category
             })}>Generate clip pool <span aria-hidden="true">→</span></button
         >
       </div>
