@@ -203,7 +203,6 @@ struct PersonResponse {
 struct TagCompletion {
     name: String,
     category: Option<String>,
-    count: i64,
 }
 
 impl TagCompletion {

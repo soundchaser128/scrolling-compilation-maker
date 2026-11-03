@@ -100,7 +100,6 @@
       <video
         bind:this={video}
         src={clip.content_url}
-        poster={api.thumbUrl(clip.content_url, 0)}
         preload="metadata"
         controls
         muted
@@ -124,14 +123,12 @@
     onclick={onToggle}>{selected ? 'Selected' : 'Select'}</button
   >
   <div class="row">
-    <span class="title"
-      >{clip.title}</span
-    >
+    <span class="title">{clip.title}</span>
     <span class="popularity">★ {clip.popularity.toFixed(1)}</span>
   </div>
 
   <div class="row">
-    {clip.performers.join(", ")}
+    {clip.performers.join(', ')}
   </div>
 
   {#if isVideo}
@@ -171,59 +168,40 @@
   </div>
 </div>
 
-<style>
+<style lang="postcss">
+  @reference '../../app.css';
+
   .card {
-    border: 1px solid var(--color-base-300);
-    border-radius: 1rem;
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    background: var(--color-base-100);
+    @apply flex flex-col gap-2.5 rounded-box border border-base-300 bg-base-100 p-2.5;
   }
   .card.selected {
-    border-color: var(--color-neutral);
-    box-shadow: 0 0 0 2px var(--color-neutral);
+    @apply border-neutral ring-2 ring-neutral;
   }
   .media {
-    position: relative;
-    aspect-ratio: 9/16;
+    @apply relative -mx-2.5 -mt-2.5 aspect-9/16 overflow-hidden rounded-t-box;
     background: #171d19;
-    overflow: hidden;
-    margin-left: -10px;
-    margin-right: -10px;
-    margin-top: -10px;
   }
   video,
   img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    @apply h-full w-full object-contain;
   }
   .row {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
+    @apply flex justify-between gap-2 font-bold;
     font-size: 13px;
-    font-weight: 700;
   }
   .title {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    @apply truncate;
   }
   .popularity {
+    @apply whitespace-nowrap;
     color: #8b7436;
-    white-space: nowrap;
   }
   .trim {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    @apply flex flex-col gap-1.5;
     font-size: 12px;
   }
   .times {
-    color: color-mix(in oklab, var(--color-base-content) 55%, transparent);
+    @apply text-base-content/55;
     font-size: 11px;
   }
 </style>

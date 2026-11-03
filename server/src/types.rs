@@ -1,4 +1,4 @@
-use std::{num::ParseIntError, time::Duration};
+use std::num::ParseIntError;
 
 use serde::Deserialize;
 use uuid::Uuid;
@@ -28,47 +28,6 @@ impl AspectRatio {
         w += w % 2; // round up to even
         w
     }
-}
-
-/// Parse a human-friendly duration string like "30s", "1m", "1m30s", "90".
-/// Plain numbers are treated as seconds.
-pub fn parse_duration(s: &str) -> Result<Duration, String> {
-    let s = s.trim();
-
-    // Plain number = seconds
-    if let Ok(secs) = s.parse::<u64>() {
-        return Ok(Duration::from_secs(secs));
-    }
-
-    let mut total_secs: u64 = 0;
-    let mut current = String::new();
-
-    for c in s.chars() {
-        if c.is_ascii_digit() {
-            current.push(c);
-        } else {
-            let value: u64 = current.parse().map_err(|e: ParseIntError| e.to_string())?;
-            current.clear();
-            match c {
-                'h' => total_secs += value * 3600,
-                'm' => total_secs += value * 60,
-                's' => total_secs += value,
-                _ => return Err(format!("unknown duration unit '{c}', expected h/m/s")),
-            }
-        }
-    }
-
-    if !current.is_empty() {
-        return Err(format!(
-            "trailing number '{current}' without unit, use e.g. '{current}s'"
-        ));
-    }
-
-    if total_secs == 0 {
-        return Err("duration must be greater than 0".to_string());
-    }
-
-    Ok(Duration::from_secs(total_secs))
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
@@ -177,6 +136,7 @@ pub fn extension_for_mime(mime: &str) -> &'static str {
     }
 }
 
+#[allow(unused)]
 pub struct ClipInfo {
     pub path: String,
     /// Width after scaling to viewport height (preserving aspect ratio).

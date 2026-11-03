@@ -6,7 +6,6 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize};
-use tower_http::trace::TraceLayer;
 use tracing::Instrument;
 use uuid::Uuid;
 
@@ -148,10 +147,6 @@ pub fn router(state: AppState) -> Router {
         .route("/api/render/{id}", get(render_status))
         .route("/api/output/{id}", get(download_output))
         .route("/api/summary/{id}", get(download_summary))
-        .route("/api/thumb", get(thumbnail))
-        .layer(TraceLayer::new_for_http().make_span_with(|request: &axum::http::Request<_>| {
-            tracing::info_span!("http_request", method = %request.method(), path = request.uri().path())
-        }).on_response(tower_http::trace::DefaultOnResponse::new().level(tracing::Level::INFO)))
         .with_state(state)
 }
 
@@ -169,6 +164,7 @@ use crate::{
 };
 
 #[derive(Deserialize)]
+#[allow(unused)]
 pub struct ClipSelection {
     pub id: Uuid,
     pub content_url: String,
@@ -528,57 +524,6 @@ async fn download_summary(
                 HeaderValue::from_str(&format!("attachment; filename=\"{id}.md\"")).unwrap(),
             ),
         ],
-        bytes,
-    ))
-}
-
-fn default_thumb_t() -> f32 {
-    1.0
-}
-#[derive(Deserialize)]
-pub struct ThumbQuery {
-    pub url: String, // full CDN content URL
-    #[serde(default = "default_thumb_t")]
-    pub t: f32,
-}
-
-#[tracing::instrument(skip_all)]
-async fn thumbnail(
-    State(state): State<AppState>,
-    Query(q): Query<ThumbQuery>,
-) -> ApiResult<impl IntoResponse> {
-    // derive a cache key from the url
-    use std::hash::{Hash, Hasher};
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    q.url.hash(&mut h);
-    let key = h.finish();
-    let cache = state
-        .work_dir
-        .join(format!("thumb-{key}-{}.jpg", (q.t * 10.0) as u32));
-    if !cache.exists() {
-        tracing::debug!("generating thumbnail");
-        let status = tokio::process::Command::new("ffmpeg")
-            .arg("-ss")
-            .arg(q.t.to_string())
-            .arg("-i")
-            .arg(&q.url)
-            .arg("-frames:v")
-            .arg("1")
-            .arg("-vf")
-            .arg("scale=320:-2")
-            .arg("-y")
-            .arg(&cache)
-            .output()
-            .await?;
-        if !status.status.success() {
-            return Err(crate::error::ApiError::Internal(
-                "thumbnail generation failed".into(),
-            ));
-        }
-    }
-    let bytes = tokio::fs::read(&cache).await?;
-    Ok((
-        [(header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg"))],
         bytes,
     ))
 }
